@@ -43,11 +43,14 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
   - Rôles: `PHARMACIEN`, `ADMIN`
 - `GET /api/patients`
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
-  - Vue caissier: identité + téléphone + assurance.
-  - Vue pharmacien/admin: inclut aussi le médical.
+  - Retourne uniquement: identité + téléphone + assurance (pas de médical).
+  - Recherche (optionnelle): `GET /api/patients?q=kamga` (nom/prénom/téléphone), limité à 50 résultats.
 - `GET /api/patients/{patientId}`
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
-  - Vue caissier vs pharmacien/admin (médical masqué pour caissier).
+  - Retourne uniquement: identité + contact + assurance (pas de médical).
+- `GET /api/patients/{patientId}/medical`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Lecture médical protégé (allergies/pathologies/médecin traitant).
 
 #### Ordonnances
 - `POST /api/ordonnances`

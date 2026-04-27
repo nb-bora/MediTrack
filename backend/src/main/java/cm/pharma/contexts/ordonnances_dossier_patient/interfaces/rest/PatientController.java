@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -89,28 +89,23 @@ public class PatientController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
-    public List<PatientListItem> lister(JwtAuthenticationToken auth) {
+    public List<PatientListItem> lister(@RequestParam(name = "q", required = false) String q, JwtAuthenticationToken auth) {
         UUID orgId = OrganisationContext.organisationId(auth);
-        boolean showMedical = hasRole(auth, "ROLE_PHARMACIEN") || hasRole(auth, "ROLE_ADMIN");
-        return patients.findByOrganisationIdOrderByNomAscPrenomAsc(orgId).stream()
-                .map(p -> {
-                    MedicalView mv = null;
-                    if (showMedical) {
-                        mv = medical.findByPatientId(p.getId())
-                                .map(m -> new MedicalView(m.getAllergies(), m.getPathologiesChroniques(), m.getMedecinTraitant()))
-                                .orElse(null);
-                    }
-                    return new PatientListItem(
-                            p.getId(),
-                            p.getNom(),
-                            p.getPrenom(),
-                            p.getTelephone(),
-                            p.getAssuranceOrganismeNom(),
-                            p.getAssuranceNumeroAdherent(),
-                            p.getAssuranceTauxCouverture(),
-                            mv
-                    );
-                })
+        var src = (q == null || q.isBlank())
+                ? patients.findByOrganisationIdOrderByNomAscPrenomAsc(orgId)
+                : patients.search(orgId, q.trim());
+        // Limite simple côté API pour l'écran caisse.
+        return src.stream()
+                .limit(50)
+                .map(p -> new PatientListItem(
+                        p.getId(),
+                        p.getNom(),
+                        p.getPrenom(),
+                        p.getTelephone(),
+                        p.getAssuranceOrganismeNom(),
+                        p.getAssuranceNumeroAdherent(),
+                        p.getAssuranceTauxCouverture()
+                ))
                 .toList();
     }
 
@@ -118,14 +113,7 @@ public class PatientController {
     @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
     public PatientDetailResponse detail(@PathVariable UUID patientId, JwtAuthenticationToken auth) {
         UUID orgId = OrganisationContext.organisationId(auth);
-        boolean showMedical = hasRole(auth, "ROLE_PHARMACIEN") || hasRole(auth, "ROLE_ADMIN");
         var p = patients.findByOrganisationIdAndId(orgId, patientId).orElseThrow();
-        MedicalView mv = null;
-        if (showMedical) {
-            mv = medical.findByPatientId(patientId)
-                    .map(m -> new MedicalView(m.getAllergies(), m.getPathologiesChroniques(), m.getMedecinTraitant()))
-                    .orElse(null);
-        }
         return new PatientDetailResponse(
                 p.getId(),
                 p.getNom(),
@@ -136,9 +124,18 @@ public class PatientController {
                 p.getAdresse(),
                 p.getAssuranceOrganismeNom(),
                 p.getAssuranceNumeroAdherent(),
-                p.getAssuranceTauxCouverture(),
-                mv
+                p.getAssuranceTauxCouverture()
         );
+    }
+
+    @GetMapping("/{patientId}/medical")
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public MedicalView medical(@PathVariable UUID patientId, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        patients.findByOrganisationIdAndId(orgId, patientId).orElseThrow();
+        return medical.findByPatientId(patientId)
+                .map(m -> new MedicalView(m.getAllergies(), m.getPathologiesChroniques(), m.getMedecinTraitant()))
+                .orElse(new MedicalView(null, null, null));
     }
 
     public record CreerPatientRequest(
@@ -174,8 +171,7 @@ public class PatientController {
             String telephone,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture,
-            MedicalView medical
+            Double assuranceTauxCouverture
     ) {
     }
 
@@ -189,13 +185,8 @@ public class PatientController {
             String adresse,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture,
-            MedicalView medical
+            Double assuranceTauxCouverture
     ) {
-    }
-
-    private static boolean hasRole(JwtAuthenticationToken auth, String role) {
-        return auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).anyMatch(role::equals);
     }
 }
 
