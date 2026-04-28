@@ -44,7 +44,7 @@ public class CategorieController {
     public List<CategorieListItem> list(JwtAuthenticationToken auth) {
         UUID orgId = OrganisationContext.organisationId(auth);
         return categories.findByOrganisationIdOrderByNomAsc(orgId).stream()
-                .map(c -> new CategorieListItem(c.getId()))
+                .map(c -> new CategorieListItem(c.getId(), c.getParentId(), c.getNom()))
                 .toList();
     }
 
@@ -54,7 +54,7 @@ public class CategorieController {
     public record CreateCategorieResponse(UUID categorieId) {
     }
 
-    public record CategorieListItem(UUID id) {
+    public record CategorieListItem(UUID id, UUID parentId, String nom) {
     }
 }
 

@@ -11,6 +11,7 @@ import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -192,7 +193,7 @@ public class PatientController {
             String adresse,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture
+            BigDecimal assuranceTauxCouverture
     ) {
     }
 
@@ -216,7 +217,7 @@ public class PatientController {
             String telephone,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture
+            BigDecimal assuranceTauxCouverture
     ) {
     }
 
@@ -230,7 +231,7 @@ public class PatientController {
             String adresse,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture
+            BigDecimal assuranceTauxCouverture
     ) {
     }
 

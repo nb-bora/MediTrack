@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProfilTaxeJpaRepository extends JpaRepository<ProfilTaxeJpaEntity, UUID> {
     Optional<ProfilTaxeJpaEntity> findByOrganisationIdAndNom(UUID organisationId, String nom);
+
+    boolean existsByOrganisationIdAndId(UUID organisationId, UUID id);
 }
 

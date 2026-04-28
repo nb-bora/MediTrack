@@ -1,6 +1,7 @@
 package cm.pharma.contexts.ordonnances_dossier_patient.application.service;
 
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
+import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Set;
 
@@ -61,7 +62,9 @@ public final class AllergieDetector {
         if (s == null) {
             return "";
         }
-        return s.toUpperCase(Locale.ROOT);
+        String upper = s.toUpperCase(Locale.ROOT);
+        String decomposed = Normalizer.normalize(upper, Normalizer.Form.NFD);
+        return decomposed.replaceAll("\\p{M}+", "");
     }
 }
 

@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -61,9 +63,35 @@ public class SequenceNumerotationJpaEntity {
     }
 
     public int nextAndIncrement(Instant now) {
+        maybeReset(now);
         this.compteurCourant = this.compteurCourant + 1;
         this.updatedAt = now;
         return this.compteurCourant;
+    }
+
+    private void maybeReset(Instant now) {
+        if (resetFrequence == null || resetFrequence.isBlank()) {
+            return;
+        }
+        if (resetDernier == null) {
+            resetDernier = now;
+            return;
+        }
+
+        LocalDate last = LocalDate.ofInstant(resetDernier, ZoneId.systemDefault());
+        LocalDate current = LocalDate.ofInstant(now, ZoneId.systemDefault());
+        String freq = resetFrequence.toUpperCase();
+
+        boolean mustReset = switch (freq) {
+            case "MENSUEL" -> last.getYear() != current.getYear() || last.getMonthValue() != current.getMonthValue();
+            case "ANNUEL" -> last.getYear() != current.getYear();
+            default -> false;
+        };
+
+        if (mustReset) {
+            compteurCourant = 0;
+            resetDernier = now;
+        }
     }
 }
 

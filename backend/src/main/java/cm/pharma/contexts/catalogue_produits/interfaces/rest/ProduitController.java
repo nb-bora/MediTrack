@@ -9,6 +9,8 @@ import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.Prod
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -82,9 +84,11 @@ public class ProduitController {
     @PreAuthorize("hasAnyRole('ADMIN','PHARMACIEN')")
     public CreateCodeBarresResponse addCodeBarres(
             @PathVariable UUID produitId,
-            @Valid @RequestBody CreateCodeBarresRequest req
+            @Valid @RequestBody CreateCodeBarresRequest req,
+            JwtAuthenticationToken auth
     ) {
-        UUID id = ajouterCodeBarres.execute(new AjouterCodeBarresCommand(produitId, req.ean13(), req.libelle()));
+        UUID organisationId = OrganisationContext.organisationId(auth);
+        UUID id = ajouterCodeBarres.execute(new AjouterCodeBarresCommand(organisationId, produitId, req.ean13(), req.libelle()));
         return new CreateCodeBarresResponse(id);
     }
 
@@ -114,7 +118,12 @@ public class ProduitController {
     public record ProduitListItem(UUID id, String nomCommercial, String dci, String dosage) {
     }
 
-    public record CreateCodeBarresRequest(String ean13, String libelle) {
+    public record CreateCodeBarresRequest(
+            @NotBlank
+            @Pattern(regexp = "^\\d{13}$", message = "EAN13 doit contenir 13 chiffres")
+            String ean13,
+            String libelle
+    ) {
     }
 
     public record CreateCodeBarresResponse(UUID codeBarresId) {

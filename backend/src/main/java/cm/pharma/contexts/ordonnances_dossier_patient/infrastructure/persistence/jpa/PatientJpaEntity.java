@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -44,7 +45,7 @@ public class PatientJpaEntity {
     private String assuranceNumeroAdherent;
 
     @Column(name = "assurance_taux_couverture", precision = 5, scale = 2)
-    private Double assuranceTauxCouverture;
+    private BigDecimal assuranceTauxCouverture;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -66,7 +67,7 @@ public class PatientJpaEntity {
             String adresse,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture,
+            BigDecimal assuranceTauxCouverture,
             Instant now
     ) {
     }
@@ -129,7 +130,7 @@ public class PatientJpaEntity {
         return assuranceNumeroAdherent;
     }
 
-    public Double getAssuranceTauxCouverture() {
+    public BigDecimal getAssuranceTauxCouverture() {
         return assuranceTauxCouverture;
     }
 }

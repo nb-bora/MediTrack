@@ -55,5 +55,9 @@ public class RoleJpaEntity {
     public UUID getId() {
         return id;
     }
+
+    public String getCode() {
+        return code;
+    }
 }
 

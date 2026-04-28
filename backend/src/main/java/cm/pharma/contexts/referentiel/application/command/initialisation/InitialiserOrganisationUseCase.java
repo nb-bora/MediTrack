@@ -109,12 +109,13 @@ public class InitialiserOrganisationUseCase implements UseCase<InitialiserOrgani
 
         // Séquences (Module A.2)
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "VENTE", "VT-{AA}-{MM}-{SEQ5}", now));
-        sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "FACTURE", "FAC-{AAAA}-{SEQ6}", now));
+        sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "FACTURE", cmd.formatFacture(), now));
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "TICKET", cmd.formatTicket(), now));
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "BON_COMMANDE", "BC-{AA}-{SEQ4}", now));
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "RECEPTION", "REC-{AA}-{MM}-{SEQ4}", now));
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "INVENTAIRE", "INV-{AA}-{MM}-{SEQ2}", now));
         sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "ORDONNANCE", "ORD-{AA}-{MM}-{SEQ5}", now));
+        sequences.save(SequenceNumerotationJpaEntity.create(UUID.randomUUID(), organisationId, "DOSSIER_TP", "TP-{AA}-{MM}-{SEQ5}", now));
 
         // Module C — profils TVA par défaut (pour rendre le catalogue immédiatement utilisable)
         creerProfilsTaxeParDefaut.execute(organisationId, cmd.tvaMedicaments(), cmd.tvaParapharma());

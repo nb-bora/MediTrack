@@ -4,6 +4,7 @@ import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.CodeBarresProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.CodeBarresProduitJpaRepository;
+import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
@@ -30,22 +31,28 @@ public class AjouterCodeBarresUseCase {
     public UUID execute(AjouterCodeBarresCommand cmd) {
         Objects.requireNonNull(cmd, "cmd requis");
 
-        if (!produits.existsById(cmd.produitId())) {
-            throw new BusinessRuleViolationException("Produit introuvable");
+        ProduitJpaEntity produit = produits.findById(cmd.produitId())
+                .orElseThrow(() -> new BusinessRuleViolationException("Produit introuvable"));
+        if (!produit.getOrganisationId().equals(cmd.organisationId())) {
+            throw new BusinessRuleViolationException("Produit hors organisation");
         }
-        if (codesBarres.existsByEan13(cmd.ean13())) {
+        String ean = cmd.ean13() == null ? null : cmd.ean13().trim();
+        if (ean == null || !ean.matches("^\\d{13}$")) {
+            throw new BusinessRuleViolationException("EAN13 doit contenir 13 chiffres");
+        }
+        if (codesBarres.existsByEan13(ean)) {
             throw new BusinessRuleViolationException("EAN13 déjà utilisé par un autre produit");
         }
 
         Instant now = Instant.now();
         UUID id = UUID.randomUUID();
-        codesBarres.save(CodeBarresProduitJpaEntity.create(id, cmd.produitId(), cmd.ean13(), cmd.libelle(), now));
+        codesBarres.save(CodeBarresProduitJpaEntity.create(id, cmd.produitId(), ean, cmd.libelle(), now));
 
         auditWriter.write(AuditEvent.simple(
-                produits.findById(cmd.produitId()).map(p -> p.getOrganisationId()).orElse(null),
+                produit.getOrganisationId(),
                 now, null, null, null,
                 null, null, "CODE_BARRES_CREE", "CodeBarresProduit", id.toString(), null,
-                Map.of("produit_id", cmd.produitId().toString(), "ean13", cmd.ean13())
+                Map.of("produit_id", cmd.produitId().toString(), "ean13", ean)
         ));
         return id;
     }

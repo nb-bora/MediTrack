@@ -8,5 +8,7 @@ public interface CategorieProduitJpaRepository extends JpaRepository<CategoriePr
     boolean existsByOrganisationIdAndParentIdAndNomIgnoreCase(UUID organisationId, UUID parentId, String nom);
 
     List<CategorieProduitJpaEntity> findByOrganisationIdOrderByNomAsc(UUID organisationId);
+
+    boolean existsByOrganisationIdAndId(UUID organisationId, UUID id);
 }
 

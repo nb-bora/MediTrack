@@ -2,6 +2,8 @@ package cm.pharma.contexts.catalogue_produits.application.command;
 
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
+import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.CategorieProduitJpaRepository;
+import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProfilTaxeJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
@@ -20,10 +22,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreerProduitUseCase {
 
     private final ProduitJpaRepository produits;
+    private final ProfilTaxeJpaRepository profilsTaxe;
+    private final CategorieProduitJpaRepository categories;
     private final AuditWriter auditWriter;
 
-    public CreerProduitUseCase(ProduitJpaRepository produits, AuditWriter auditWriter) {
+    public CreerProduitUseCase(
+            ProduitJpaRepository produits,
+            ProfilTaxeJpaRepository profilsTaxe,
+            CategorieProduitJpaRepository categories,
+            AuditWriter auditWriter
+    ) {
         this.produits = Objects.requireNonNull(produits);
+        this.profilsTaxe = Objects.requireNonNull(profilsTaxe);
+        this.categories = Objects.requireNonNull(categories);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -41,6 +52,13 @@ public class CreerProduitUseCase {
                         "Doublon potentiel détecté (même DCI + dosage). Crée un lien de substituabilité au lieu d’une nouvelle fiche."
                 );
             }
+        }
+
+        if (!profilsTaxe.existsByOrganisationIdAndId(cmd.organisationId(), cmd.profilTaxeId())) {
+            throw new BusinessRuleViolationException("Profil TVA introuvable pour l'organisation");
+        }
+        if (cmd.categorieId() != null && !categories.existsByOrganisationIdAndId(cmd.organisationId(), cmd.categorieId())) {
+            throw new BusinessRuleViolationException("Catégorie introuvable pour l'organisation");
         }
 
         Instant now = Instant.now();

@@ -9,6 +9,7 @@ import java.util.UUID;
  * Commande d’ajout d’un code-barres EAN13 à un produit.
  */
 public record AjouterCodeBarresCommand(
+        @NotNull UUID organisationId,
         @NotNull UUID produitId,
         @NotBlank
         @Pattern(regexp = "^\\d{13}$", message = "EAN13 doit contenir 13 chiffres")

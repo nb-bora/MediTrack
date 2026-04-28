@@ -51,5 +51,13 @@ public class CategorieProduitJpaEntity {
     public UUID getId() {
         return id;
     }
+
+    public UUID getParentId() {
+        return parentId;
+    }
+
+    public String getNom() {
+        return nom;
+    }
 }
 

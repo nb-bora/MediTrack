@@ -76,5 +76,57 @@ public class EvenementAuditJpaEntity {
         e.details = details == null || details.isBlank() ? "{}" : details;
         return e;
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getOrganisationId() {
+        return organisationId;
+    }
+
+    public Instant getHorodatage() {
+        return horodatage;
+    }
+
+    public UUID getUtilisateurId() {
+        return utilisateurId;
+    }
+
+    public String getUtilisateurNom() {
+        return utilisateurNom;
+    }
+
+    public String getUtilisateurRole() {
+        return utilisateurRole;
+    }
+
+    public String getPoste() {
+        return poste;
+    }
+
+    public String getAdresseIp() {
+        return adresseIp;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public String getEntite() {
+        return entite;
+    }
+
+    public String getEntiteId() {
+        return entiteId;
+    }
+
+    public String getMotif() {
+        return motif;
+    }
+
+    public String getDetails() {
+        return details;
+    }
 }
 

@@ -146,6 +146,15 @@ public class UtilisateurJpaEntity {
         this.mdpExpiresAt = mdpExpiresAt;
     }
 
+    public void setActif(boolean actif) {
+        this.actif = actif;
+    }
+
+    public void resetLockout() {
+        this.tentativesEchec = 0;
+        this.verrouilleJusqua = null;
+    }
+
     public void touch(Instant now) {
         this.updatedAt = now;
     }

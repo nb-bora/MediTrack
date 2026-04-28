@@ -7,6 +7,7 @@ import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientMedicalJpaEntity;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientMedicalJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -75,7 +76,7 @@ public class CreerPatientUseCase {
             String adresse,
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
-            Double assuranceTauxCouverture,
+            BigDecimal assuranceTauxCouverture,
             UUID creePar,
             String posteNom
     ) {

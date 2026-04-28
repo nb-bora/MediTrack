@@ -1,9 +1,7 @@
 package cm.pharma.contexts.stocks_tracabilite.bootstrap;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@Component
 @ConfigurationProperties(prefix = "pharma.stocks.reception")
 public class StocksReceptionProperties {
 
