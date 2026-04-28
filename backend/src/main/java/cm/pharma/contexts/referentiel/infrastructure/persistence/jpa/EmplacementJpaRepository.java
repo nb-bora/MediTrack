@@ -14,6 +14,15 @@ public interface EmplacementJpaRepository extends JpaRepository<EmplacementJpaEn
             from EmplacementJpaEntity e, SiteJpaEntity s
             where e.siteId = s.id
               and s.organisationId = :organisationId
+            order by s.nom asc, e.ordreAffichage asc, e.code asc
+            """)
+    List<EmplacementJpaEntity> findByOrganisationIdOrderBySiteNomAndOrdre(UUID organisationId);
+
+    @Query("""
+            select e
+            from EmplacementJpaEntity e, SiteJpaEntity s
+            where e.siteId = s.id
+              and s.organisationId = :organisationId
               and e.code = :code
             """)
     Optional<EmplacementJpaEntity> findByOrganisationIdAndCode(UUID organisationId, String code);

@@ -10,6 +10,7 @@ import cm.pharma.contexts.achats_fournisseurs.infrastructure.persistence.jpa.Rec
 import cm.pharma.contexts.achats_fournisseurs.infrastructure.persistence.jpa.ReceptionFournisseurLigneJpaRepository;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.contexts.stocks_tracabilite.application.command.ReceptionnerStockCommand;
 import cm.pharma.contexts.stocks_tracabilite.application.command.ReceptionnerStockUseCase;
 import cm.pharma.shared.application.AlerteService;
@@ -34,6 +35,7 @@ public class EnregistrerReceptionUseCase {
     private final ReceptionnerStockUseCase receptionnerStock;
     private final AuditWriter auditWriter;
     private final AlerteService alerteService;
+    private final ParametresService parametres;
 
     public EnregistrerReceptionUseCase(
             BonCommandeJpaRepository bons,
@@ -42,7 +44,8 @@ public class EnregistrerReceptionUseCase {
             ReceptionFournisseurLigneJpaRepository lignesReception,
             ReceptionnerStockUseCase receptionnerStock,
             AuditWriter auditWriter,
-            AlerteService alerteService
+            AlerteService alerteService,
+            ParametresService parametres
     ) {
         this.bons = Objects.requireNonNull(bons);
         this.lignesBon = Objects.requireNonNull(lignesBon);
@@ -51,6 +54,7 @@ public class EnregistrerReceptionUseCase {
         this.receptionnerStock = Objects.requireNonNull(receptionnerStock);
         this.auditWriter = Objects.requireNonNull(auditWriter);
         this.alerteService = Objects.requireNonNull(alerteService);
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Transactional
@@ -109,7 +113,7 @@ public class EnregistrerReceptionUseCase {
                     lr.datePeremption(),
                     lr.quantiteRecue(),
                     lr.prixFactureUnitaire(),
-                    (lr.devise() == null || lr.devise().isBlank()) ? "XAF" : lr.devise(),
+                    (lr.devise() == null || lr.devise().isBlank()) ? parametres.getString(cmd.organisationId(), "DEVISE", "XAF") : lr.devise(),
                     lr.temperatureTransportC() == null ? null : BigDecimal.valueOf(lr.temperatureTransportC())
             ));
 
@@ -122,12 +126,14 @@ public class EnregistrerReceptionUseCase {
             prixMismatch = prixMismatch || shouldFlagPrixValidation(cmd, lr, prixAttendu);
         }
 
-        if (prixMismatch) {
+        boolean workflowPrixActif = parametres.getBoolean(cmd.organisationId(), "RECEPTION_WORKFLOW_PRIX_DIFFERENT_ACTIF", true);
+        if (prixMismatch && workflowPrixActif) {
+            String severite = parametres.getString(cmd.organisationId(), "RECEPTION_PRIX_DIFFERENT_SEVERITE", "IMPORTANT");
             reception.setStatutValidationPrix("EN_ATTENTE");
             alerteService.openDedup(
                     cmd.organisationId(),
                     ALERT_TYPE_PRIX_DIFFERENT,
-                    "IMPORTANT",
+                    severite,
                     "ReceptionFournisseur",
                     receptionId.toString(),
                     "Prix facture à valider (réception " + receptionId + ")",

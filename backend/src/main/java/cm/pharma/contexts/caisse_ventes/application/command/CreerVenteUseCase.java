@@ -7,6 +7,7 @@ import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.SessionCa
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaEntity;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaRepository;
 import cm.pharma.contexts.referentiel.application.service.NumerotationService;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.util.Map;
@@ -21,17 +22,20 @@ public class CreerVenteUseCase {
     private final SessionCaisseJpaRepository sessions;
     private final VenteJpaRepository ventes;
     private final NumerotationService numerotation;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
     public CreerVenteUseCase(
             SessionCaisseJpaRepository sessions,
             VenteJpaRepository ventes,
             NumerotationService numerotation,
+            ParametresService parametres,
             AuditWriter auditWriter
     ) {
         this.sessions = Objects.requireNonNull(sessions);
         this.ventes = Objects.requireNonNull(ventes);
         this.numerotation = Objects.requireNonNull(numerotation);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -44,6 +48,7 @@ public class CreerVenteUseCase {
         UUID id = UUID.randomUUID();
         String numeroVente = numerotation.nextNumero(organisationId, "VENTE");
         String numeroTicket = numerotation.nextNumero(organisationId, "TICKET");
+        String d = (devise == null || devise.isBlank()) ? parametres.getString(organisationId, "DEVISE", "XAF") : devise.trim();
         ventes.save(VenteJpaEntity.create(new VenteJpaEntity.VenteInit(
                 id,
                 organisationId,
@@ -51,7 +56,7 @@ public class CreerVenteUseCase {
                 numeroVente,
                 numeroTicket,
                 actorId,
-                devise,
+                d,
                 now
         )));
 

@@ -11,7 +11,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
-import cm.pharma.contexts.stocks_tracabilite.bootstrap.StocksReceptionProperties;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,7 +33,7 @@ public class ReceptionnerStockUseCase {
     private final InventaireJpaRepository inventaires;
     private final MettreLotEnQuarantaineUseCase mettreEnQuarantaine;
     private final AuditWriter auditWriter;
-    private final StocksReceptionProperties receptionProps;
+    private final ParametresService parametres;
 
     public ReceptionnerStockUseCase(
             ProduitJpaRepository produits,
@@ -43,7 +43,7 @@ public class ReceptionnerStockUseCase {
             InventaireJpaRepository inventaires,
             MettreLotEnQuarantaineUseCase mettreEnQuarantaine,
             AuditWriter auditWriter,
-            StocksReceptionProperties receptionProps
+            ParametresService parametres
     ) {
         this.produits = Objects.requireNonNull(produits);
         this.lots = Objects.requireNonNull(lots);
@@ -52,7 +52,7 @@ public class ReceptionnerStockUseCase {
         this.inventaires = Objects.requireNonNull(inventaires);
         this.mettreEnQuarantaine = Objects.requireNonNull(mettreEnQuarantaine);
         this.auditWriter = Objects.requireNonNull(auditWriter);
-        this.receptionProps = Objects.requireNonNull(receptionProps);
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Transactional
@@ -72,7 +72,7 @@ public class ReceptionnerStockUseCase {
             throw new BusinessRuleViolationException("Impossible de réceptionner un lot déjà périmé");
         }
 
-        int alerteMois = receptionProps.getAlertePeremptionMois();
+        int alerteMois = Math.max(0, parametres.getInt(cmd.organisationId(), "RECEPTION_ALERTE_PEREMPTION_MOIS", 6));
         if (Period.between(LocalDate.now(), cmd.datePeremption()).toTotalMonths() < alerteMois && !cmd.confirmerPeremptionProche()) {
             throw new BusinessRuleViolationException("Lot périme dans moins de " + alerteMois + " mois: confirmation pharmacien requise");
         }
@@ -156,7 +156,9 @@ public class ReceptionnerStockUseCase {
         // Chaîne du froid : si température fournie hors plage, mise en quarantaine automatique.
         if (cmd.temperatureTransportC() != null) {
             double t = cmd.temperatureTransportC();
-            if (t < receptionProps.getChaineFroid().getTempMinC() || t > receptionProps.getChaineFroid().getTempMaxC()) {
+            double tMin = parametres.getDouble(cmd.organisationId(), "RECEPTION_CHAINE_FROID_TEMP_MIN_C", 2.0);
+            double tMax = parametres.getDouble(cmd.organisationId(), "RECEPTION_CHAINE_FROID_TEMP_MAX_C", 8.0);
+            if (t < tMin || t > tMax) {
                 mettreEnQuarantaine.execute(cmd.organisationId(), lotId, "CHAINE_DU_FROID_HORS_NORME (" + t + "°C)", cmd.creePar());
             }
         }

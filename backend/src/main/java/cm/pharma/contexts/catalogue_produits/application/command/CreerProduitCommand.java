@@ -22,7 +22,7 @@ public record CreerProduitCommand(
         boolean estStupefiant,
         boolean estPsychotrope,
         boolean estControle,
-        @NotNull UUID profilTaxeId,
+        UUID profilTaxeId,
         Integer stockMinimum,
         Integer stockSecurite,
         Integer delaiReapproJours

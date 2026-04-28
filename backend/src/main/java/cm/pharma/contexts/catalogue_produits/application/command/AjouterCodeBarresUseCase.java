@@ -6,6 +6,7 @@ import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.Code
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.CodeBarresProduitJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.util.Map;
@@ -19,11 +20,13 @@ public class AjouterCodeBarresUseCase {
 
     private final ProduitJpaRepository produits;
     private final CodeBarresProduitJpaRepository codesBarres;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
-    public AjouterCodeBarresUseCase(ProduitJpaRepository produits, CodeBarresProduitJpaRepository codesBarres, AuditWriter auditWriter) {
+    public AjouterCodeBarresUseCase(ProduitJpaRepository produits, CodeBarresProduitJpaRepository codesBarres, ParametresService parametres, AuditWriter auditWriter) {
         this.produits = Objects.requireNonNull(produits);
         this.codesBarres = Objects.requireNonNull(codesBarres);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -40,7 +43,9 @@ public class AjouterCodeBarresUseCase {
         if (ean == null || !ean.matches("^\\d{13}$")) {
             throw new BusinessRuleViolationException("EAN13 doit contenir 13 chiffres");
         }
-        if (codesBarres.existsByEan13(ean)) {
+        boolean uniqueGlobal = parametres.getBoolean(cmd.organisationId(), "EAN13_UNIQUE_GLOBAL", true);
+        boolean exists = uniqueGlobal ? codesBarres.existsByEan13(ean) : codesBarres.existsByOrganisationIdAndEan13(cmd.organisationId(), ean);
+        if (exists) {
             throw new BusinessRuleViolationException("EAN13 déjà utilisé par un autre produit");
         }
 

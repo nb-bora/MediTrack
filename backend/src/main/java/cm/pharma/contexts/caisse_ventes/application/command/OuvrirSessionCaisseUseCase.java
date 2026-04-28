@@ -4,6 +4,7 @@ import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.SessionCaisseJpaEntity;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.SessionCaisseJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class OuvrirSessionCaisseUseCase {
 
     private final SessionCaisseJpaRepository sessions;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
-    public OuvrirSessionCaisseUseCase(SessionCaisseJpaRepository sessions, AuditWriter auditWriter) {
+    public OuvrirSessionCaisseUseCase(SessionCaisseJpaRepository sessions, ParametresService parametres, AuditWriter auditWriter) {
         this.sessions = Objects.requireNonNull(sessions);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -34,12 +37,13 @@ public class OuvrirSessionCaisseUseCase {
         });
         Instant now = Instant.now();
         UUID id = UUID.randomUUID();
-        sessions.save(SessionCaisseJpaEntity.open(id, organisationId, posteNom, caissierId, fondInitial, devise, now));
+        String d = (devise == null || devise.isBlank()) ? parametres.getString(organisationId, "DEVISE", "XAF") : devise.trim();
+        sessions.save(SessionCaisseJpaEntity.open(id, organisationId, posteNom, caissierId, fondInitial, d, now));
 
         auditWriter.write(AuditEvent.simple(
                 organisationId, now, caissierId, null, null,
                 posteNom, null, "CAISSE_OUVERTE", "SessionCaisse", id.toString(), null,
-                Map.of("fond_initial", fondInitial, "devise", devise)
+                Map.of("fond_initial", fondInitial, "devise", d)
         ));
         return id;
     }

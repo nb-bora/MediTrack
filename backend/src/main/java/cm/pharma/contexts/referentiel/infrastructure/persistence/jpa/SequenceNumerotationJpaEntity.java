@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -58,8 +59,36 @@ public class SequenceNumerotationJpaEntity {
         return e;
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getOrganisationId() {
+        return organisationId;
+    }
+
+    public String getTypeDocument() {
+        return typeDocument;
+    }
+
     public String getFormat() {
         return format;
+    }
+
+    public int getCompteurCourant() {
+        return compteurCourant;
+    }
+
+    public String getResetFrequence() {
+        return resetFrequence;
+    }
+
+    public Instant getResetDernier() {
+        return resetDernier;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public int nextAndIncrement(Instant now) {
@@ -92,6 +121,18 @@ public class SequenceNumerotationJpaEntity {
             compteurCourant = 0;
             resetDernier = now;
         }
+    }
+
+    public void updateConfig(String format, String resetFrequence, Instant now) {
+        this.format = Objects.requireNonNull(format);
+        this.resetFrequence = resetFrequence;
+        this.updatedAt = now;
+    }
+
+    public void resetCounter(Instant now) {
+        this.compteurCourant = 0;
+        this.resetDernier = now;
+        this.updatedAt = now;
     }
 }
 

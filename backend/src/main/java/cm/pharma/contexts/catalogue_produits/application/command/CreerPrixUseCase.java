@@ -7,6 +7,7 @@ import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.Prix
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.PrixProduitJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,11 +22,13 @@ public class CreerPrixUseCase {
 
     private final ProduitJpaRepository produits;
     private final PrixProduitJpaRepository prix;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
-    public CreerPrixUseCase(ProduitJpaRepository produits, PrixProduitJpaRepository prix, AuditWriter auditWriter) {
+    public CreerPrixUseCase(ProduitJpaRepository produits, PrixProduitJpaRepository prix, ParametresService parametres, AuditWriter auditWriter) {
         this.produits = Objects.requireNonNull(produits);
         this.prix = Objects.requireNonNull(prix);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -49,35 +52,39 @@ public class CreerPrixUseCase {
             throw new BusinessRuleViolationException("Date d'effet invalide");
         }
 
-        // Interdire chevauchement : si un prix est applicable à dateDebut, alors on doit être en train de clôturer l’actif.
-        var applicable = prix.findApplicableAt(cmd.produitId(), cmd.typePrix(), cmd.dateDebut());
-        if (!applicable.isEmpty()) {
-            PrixProduitJpaEntity current = applicable.get(0);
-            if (current.getDateFin() != null && !current.getDateFin().isBefore(cmd.dateDebut())) {
-                throw new BusinessRuleViolationException("Chevauchement de prix interdit");
-            }
-            if (current.getDateFin() == null) {
-                if (!cmd.dateDebut().isAfter(current.getDateDebut())) {
-                    throw new BusinessRuleViolationException("La date d'effet doit être postérieure au prix actuel");
+        boolean overlapForbidden = parametres.getBoolean(cmd.organisationId(), "PRIX_CHEVAUCHEMENT_INTERDIT", true);
+        if (overlapForbidden) {
+            // Interdire chevauchement : si un prix est applicable à dateDebut, alors on doit être en train de clôturer l’actif.
+            var applicable = prix.findApplicableAt(cmd.produitId(), cmd.typePrix(), cmd.dateDebut());
+            if (!applicable.isEmpty()) {
+                PrixProduitJpaEntity current = applicable.get(0);
+                if (current.getDateFin() != null && !current.getDateFin().isBefore(cmd.dateDebut())) {
+                    throw new BusinessRuleViolationException("Chevauchement de prix interdit");
                 }
-                current.closeAt(cmd.dateDebut().minusDays(1));
-            }
-        } else {
-            // S’il y a un actif à dateFin=null mais dont dateDebut > dateDebut, c’est un prix futur: on interdit (version simple)
-            var actives = prix.findActive(cmd.produitId(), cmd.typePrix());
-            if (!actives.isEmpty() && cmd.dateDebut().isBefore(actives.get(0).getDateDebut())) {
-                throw new BusinessRuleViolationException("Impossible d'insérer un prix avant un prix futur déjà défini");
+                if (current.getDateFin() == null) {
+                    if (!cmd.dateDebut().isAfter(current.getDateDebut())) {
+                        throw new BusinessRuleViolationException("La date d'effet doit être postérieure au prix actuel");
+                    }
+                    current.closeAt(cmd.dateDebut().minusDays(1));
+                }
+            } else {
+                // S’il y a un actif à dateFin=null mais dont dateDebut > dateDebut, c’est un prix futur: on interdit (version simple)
+                var actives = prix.findActive(cmd.produitId(), cmd.typePrix());
+                if (!actives.isEmpty() && cmd.dateDebut().isBefore(actives.get(0).getDateDebut())) {
+                    throw new BusinessRuleViolationException("Impossible d'insérer un prix avant un prix futur déjà défini");
+                }
             }
         }
 
         Instant now = Instant.now();
         UUID id = UUID.randomUUID();
+        String devise = (cmd.devise() == null || cmd.devise().isBlank()) ? parametres.getString(cmd.organisationId(), "DEVISE", "XAF") : cmd.devise().trim();
         prix.save(PrixProduitJpaEntity.create(new PrixProduitJpaEntity.PrixInit(
                 id,
                 cmd.produitId(),
                 cmd.typePrix(),
                 cmd.montant(),
-                cmd.devise(),
+                devise,
                 cmd.dateDebut(),
                 null,
                 cmd.motif(),
@@ -92,7 +99,7 @@ public class CreerPrixUseCase {
                         "produit_id", cmd.produitId(),
                         "type_prix", cmd.typePrix(),
                         "montant", cmd.montant(),
-                        "devise", cmd.devise(),
+                        "devise", devise,
                         "date_debut", cmd.dateDebut(),
                         "motif", cmd.motif()
                 )

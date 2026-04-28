@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -60,8 +61,41 @@ public class EmplacementJpaEntity {
         return id;
     }
 
+    public UUID getSiteId() {
+        return siteId;
+    }
+
     public String getCode() {
         return code;
+    }
+
+    public String getNom() {
+        return nom;
+    }
+
+    public String getTypeEmplacement() {
+        return typeEmplacement;
+    }
+
+    public int getOrdreAffichage() {
+        return ordreAffichage;
+    }
+
+    public boolean isActif() {
+        return actif;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void update(String code, String nom, String type, int ordre, boolean actif, Instant now) {
+        this.code = Objects.requireNonNull(code);
+        this.nom = Objects.requireNonNull(nom);
+        this.typeEmplacement = Objects.requireNonNull(type);
+        this.ordreAffichage = ordre;
+        this.actif = actif;
+        this.updatedAt = now;
     }
 }
 

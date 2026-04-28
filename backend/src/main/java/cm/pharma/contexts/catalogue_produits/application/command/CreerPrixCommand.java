@@ -12,7 +12,7 @@ public record CreerPrixCommand(
         @NotNull UUID produitId,
         @NotBlank String typePrix,
         @NotNull @DecimalMin("0.0") BigDecimal montant,
-        @NotBlank String devise,
+        String devise,
         @NotNull LocalDate dateDebut,
         String motif,
         UUID creePar

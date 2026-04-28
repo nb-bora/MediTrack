@@ -11,6 +11,7 @@ import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteLign
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import cm.pharma.contexts.referentiel.application.service.NumerotationService;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.application.AlerteService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
     private final DossierTiersPayantJpaRepository dossiers;
     private final NumerotationService numerotation;
     private final AlerteService alertes;
+    private final ParametresService parametres;
 
     public CreerDossierTiersPayantDepuisVenteUseCase(
             VenteJpaRepository ventes,
@@ -42,7 +44,8 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
             OrganismeCouvertureJpaRepository couvertures,
             DossierTiersPayantJpaRepository dossiers,
             NumerotationService numerotation,
-            AlerteService alertes
+            AlerteService alertes,
+            ParametresService parametres
     ) {
         this.ventes = Objects.requireNonNull(ventes);
         this.lignes = Objects.requireNonNull(lignes);
@@ -51,6 +54,7 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
         this.dossiers = Objects.requireNonNull(dossiers);
         this.numerotation = Objects.requireNonNull(numerotation);
         this.alertes = Objects.requireNonNull(alertes);
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Transactional
@@ -77,7 +81,10 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
             total = total.add(l.getTotalLigne());
             priseTheorique = priseTheorique.add(TiersPayantCalculator.computePriseEnCharge(l.getTotalLigne(), taux));
         }
-        BigDecimal prisePlafonnee = appliquerPlafonds(organisationId, vente.getOrganismeId(), vente.getPatientId(), c, priseTheorique);
+        boolean plafondsActifs = parametres.getBoolean(organisationId, "TP_PLAFONDS_ACTIFS", true);
+        BigDecimal prisePlafonnee = plafondsActifs
+                ? appliquerPlafonds(organisationId, vente.getOrganismeId(), vente.getPatientId(), c, priseTheorique)
+                : (priseTheorique == null ? BigDecimal.ZERO : priseTheorique);
         BigDecimal reste = total.subtract(prisePlafonnee);
         if (reste.compareTo(BigDecimal.ZERO) < 0) {
             reste = BigDecimal.ZERO;
@@ -110,11 +117,13 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
         )));
 
         // Si pièces obligatoires, on ouvrira une alerte “tâche” tant que le dossier est brouillon.
-        if (c.isPieceOrdonnanceOriginale() || c.isPieceCarteAdherent() || c.isPieceBonPriseEnCharge() || c.isPieceExamens()) {
+        boolean piecesAlerte = parametres.getBoolean(organisationId, "TP_PIECES_ALERTE_ENABLED", true);
+        String piecesSeverite = parametres.getString(organisationId, "TP_PIECES_ALERTE_SEVERITE", "IMPORTANT");
+        if (piecesAlerte && (c.isPieceOrdonnanceOriginale() || c.isPieceCarteAdherent() || c.isPieceBonPriseEnCharge() || c.isPieceExamens())) {
             alertes.openDedup(
                     organisationId,
                     "DOSSIER_TP_PIECES_A_VERIFIER",
-                    "IMPORTANT",
+                    piecesSeverite,
                     "DossierTiersPayant",
                     dossierId.toString(),
                     "Vérifier/joindre les pièces requises avant soumission",

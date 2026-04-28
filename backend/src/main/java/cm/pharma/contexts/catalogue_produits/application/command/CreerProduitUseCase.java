@@ -6,6 +6,7 @@ import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.Cate
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProfilTaxeJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.util.List;
@@ -24,17 +25,20 @@ public class CreerProduitUseCase {
     private final ProduitJpaRepository produits;
     private final ProfilTaxeJpaRepository profilsTaxe;
     private final CategorieProduitJpaRepository categories;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
     public CreerProduitUseCase(
             ProduitJpaRepository produits,
             ProfilTaxeJpaRepository profilsTaxe,
             CategorieProduitJpaRepository categories,
+            ParametresService parametres,
             AuditWriter auditWriter
     ) {
         this.produits = Objects.requireNonNull(produits);
         this.profilsTaxe = Objects.requireNonNull(profilsTaxe);
         this.categories = Objects.requireNonNull(categories);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -42,8 +46,9 @@ public class CreerProduitUseCase {
     public CreerProduitResult execute(CreerProduitCommand cmd) {
         Objects.requireNonNull(cmd, "cmd requis");
 
+        boolean dedupEnabled = parametres.getBoolean(cmd.organisationId(), "PRODUIT_DEDUP_DCI_DOSAGE_ENABLED", true);
         // Détection doublon “sans ambiguïté” : même organisation + DCI + dosage
-        if (cmd.dci() != null && !cmd.dci().isBlank() && cmd.dosage() != null && !cmd.dosage().isBlank()) {
+        if (dedupEnabled && cmd.dci() != null && !cmd.dci().isBlank() && cmd.dosage() != null && !cmd.dosage().isBlank()) {
             List<ProduitJpaEntity> duplicates = produits.findByOrganisationIdAndDciIgnoreCaseAndDosageIgnoreCase(
                     cmd.organisationId(), cmd.dci().trim(), cmd.dosage().trim()
             );
@@ -54,7 +59,19 @@ public class CreerProduitUseCase {
             }
         }
 
-        if (!profilsTaxe.existsByOrganisationIdAndId(cmd.organisationId(), cmd.profilTaxeId())) {
+        UUID profilTaxeId = cmd.profilTaxeId();
+        if (profilTaxeId == null) {
+            String key = cmd.typeProduit().name().equals("MEDICAMENT")
+                    ? "PRODUIT_PROFIL_TAXE_DEFAUT_MEDICAMENTS"
+                    : "PRODUIT_PROFIL_TAXE_DEFAUT_PARAPHARMA";
+            String defaultNom = cmd.typeProduit().name().equals("MEDICAMENT") ? "MEDICAMENTS" : "PARAPHARMA";
+            String profilNom = parametres.getString(cmd.organisationId(), key, defaultNom);
+            profilTaxeId = profilsTaxe.findByOrganisationIdAndNom(cmd.organisationId(), profilNom).map(p -> p.getId()).orElse(null);
+            if (profilTaxeId == null) {
+                throw new BusinessRuleViolationException("Profil TVA par défaut introuvable: " + profilNom);
+            }
+        }
+        if (!profilsTaxe.existsByOrganisationIdAndId(cmd.organisationId(), profilTaxeId)) {
             throw new BusinessRuleViolationException("Profil TVA introuvable pour l'organisation");
         }
         if (cmd.categorieId() != null && !categories.existsByOrganisationIdAndId(cmd.organisationId(), cmd.categorieId())) {
@@ -79,7 +96,7 @@ public class CreerProduitUseCase {
                         cmd.estStupefiant(),
                         cmd.estPsychotrope(),
                         cmd.estControle(),
-                        cmd.profilTaxeId(),
+                        profilTaxeId,
                         cmd.stockMinimum(),
                         cmd.stockSecurite(),
                         cmd.delaiReapproJours()

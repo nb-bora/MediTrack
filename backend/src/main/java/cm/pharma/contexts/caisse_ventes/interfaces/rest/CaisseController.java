@@ -6,7 +6,6 @@ import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -55,7 +54,7 @@ public class CaisseController {
 
     public record OuvrirSessionRequest(
             @NotNull @DecimalMin("0.0") BigDecimal fondInitial,
-            @NotBlank String devise
+            String devise
     ) {
     }
 

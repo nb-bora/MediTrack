@@ -56,7 +56,7 @@ public class PrixController {
     public record CreerPrixRequest(
             @NotNull TypePrix typePrix,
             @NotNull @DecimalMin("0.0") BigDecimal montant,
-            @NotNull String devise,
+            String devise,
             @NotNull LocalDate dateDebut,
             String motif
     ) {

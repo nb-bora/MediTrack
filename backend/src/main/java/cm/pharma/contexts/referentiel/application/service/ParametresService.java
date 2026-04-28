@@ -68,6 +68,19 @@ public class ParametresService {
     }
 
     @Transactional(readOnly = true)
+    public double getDouble(UUID organisationId, String cle, double defaultValue) {
+        String v = getRaw(organisationId, cle).orElse(null);
+        if (v == null) {
+            return defaultValue;
+        }
+        try {
+            return Double.parseDouble(v.trim());
+        } catch (Exception e) {
+            throw new BusinessRuleViolationException("Paramètre invalide (double) : " + cle);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public boolean getBoolean(UUID organisationId, String cle, boolean defaultValue) {
         String v = getRaw(organisationId, cle).orElse(null);
         if (v == null) {
