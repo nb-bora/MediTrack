@@ -42,10 +42,6 @@ public class CreerRappelLotUseCase {
 
     /**
      * Crée un rappel fournisseur et bloque le lot immédiatement.
-     *
-     * <p>V1 : on ne déplace pas physiquement vers un emplacement "Quarantaine" automatique
-     * (car le mapping de l’emplacement Quarantaine n’est pas encore normé).
-     * On rend le lot non-vendable en changeant son statut.</p>
      */
     @Transactional
     public UUID execute(CreerRappelLotCommand cmd) {

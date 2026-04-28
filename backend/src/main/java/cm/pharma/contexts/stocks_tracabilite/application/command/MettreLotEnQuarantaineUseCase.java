@@ -10,6 +10,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
+import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.util.List;
@@ -28,6 +29,7 @@ public class MettreLotEnQuarantaineUseCase {
     private final LotStockJpaRepository lots;
     private final StockEmplacementJpaRepository stock;
     private final MouvementStockJpaRepository mouvements;
+    private final InventaireJpaRepository inventaires;
     private final EmplacementJpaRepository emplacements;
     private final AuditWriter auditWriter;
 
@@ -35,18 +37,24 @@ public class MettreLotEnQuarantaineUseCase {
             LotStockJpaRepository lots,
             StockEmplacementJpaRepository stock,
             MouvementStockJpaRepository mouvements,
+            InventaireJpaRepository inventaires,
             EmplacementJpaRepository emplacements,
             AuditWriter auditWriter
     ) {
         this.lots = Objects.requireNonNull(lots);
         this.stock = Objects.requireNonNull(stock);
         this.mouvements = Objects.requireNonNull(mouvements);
+        this.inventaires = Objects.requireNonNull(inventaires);
         this.emplacements = Objects.requireNonNull(emplacements);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
     @Transactional
     public void execute(UUID organisationId, UUID lotId, String motif, UUID actorId) {
+        inventaires.findOuvert(organisationId).ifPresent(i -> {
+            throw new BusinessRuleViolationException("Mouvements bloqués: inventaire ouvert");
+        });
+
         LotStockJpaEntity lot = lots.findById(lotId)
                 .orElseThrow(() -> new BusinessRuleViolationException("Lot introuvable"));
         if (!lot.getOrganisationId().equals(organisationId)) {
