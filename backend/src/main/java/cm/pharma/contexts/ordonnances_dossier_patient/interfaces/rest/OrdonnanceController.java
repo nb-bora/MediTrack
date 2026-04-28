@@ -4,12 +4,14 @@ import cm.pharma.contexts.ordonnances_dossier_patient.application.command.CreerO
 import cm.pharma.contexts.ordonnances_dossier_patient.application.command.DispenserOrdonnanceUseCase;
 import cm.pharma.contexts.ordonnances_dossier_patient.application.command.AjouterPieceOrdonnanceUseCase;
 import cm.pharma.contexts.ordonnances_dossier_patient.application.command.ValiderOrdonnanceUseCase;
+import cm.pharma.contexts.ordonnances_dossier_patient.application.command.RenouvelerOrdonnanceUseCase;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.DispensationJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceJpaEntity;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceLigneJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnancePieceJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
+import cm.pharma.contexts.ordonnances_dossier_patient.application.service.OrdonnancePieceStorageService;
 import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
 import jakarta.validation.Valid;
@@ -20,6 +22,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -46,6 +50,8 @@ public class OrdonnanceController {
     private final OrdonnancePieceJpaRepository pieces;
     private final DispensationJpaRepository dispensations;
     private final ProduitJpaRepository produits;
+    private final OrdonnancePieceStorageService storage;
+    private final RenouvelerOrdonnanceUseCase renouveler;
 
     public OrdonnanceController(
             CreerOrdonnanceUseCase creerOrdonnance,
@@ -56,7 +62,9 @@ public class OrdonnanceController {
             OrdonnanceLigneJpaRepository lignes,
             OrdonnancePieceJpaRepository pieces,
             DispensationJpaRepository dispensations,
-            ProduitJpaRepository produits
+            ProduitJpaRepository produits,
+            OrdonnancePieceStorageService storage,
+            RenouvelerOrdonnanceUseCase renouveler
     ) {
         this.creerOrdonnance = creerOrdonnance;
         this.validerOrdonnance = validerOrdonnance;
@@ -67,6 +75,8 @@ public class OrdonnanceController {
         this.pieces = pieces;
         this.dispensations = dispensations;
         this.produits = produits;
+        this.storage = storage;
+        this.renouveler = renouveler;
     }
 
     @PostMapping
@@ -146,19 +156,57 @@ public class OrdonnanceController {
     public OrdonnanceDetailResponse detail(@PathVariable UUID ordonnanceId, JwtAuthenticationToken auth) {
         UUID orgId = OrganisationContext.organisationId(auth);
         OrdonnanceJpaEntity o = ordonnances.findByOrganisationIdAndId(orgId, ordonnanceId).orElseThrow();
-        var lignesItems = lignes.findByOrdonnanceId(ordonnanceId).stream()
+        var lignesItems = lignes.findByOrganisationIdAndOrdonnanceId(orgId, ordonnanceId).stream()
                 .map(l -> {
                     String libelle = produits.findById(l.getProduitId()).map(p -> p.getNomCommercial()).orElse(l.getProduitId().toString());
                     return new OrdonnanceLigneItem(l.getId(), l.getProduitId(), libelle, l.getQuantitePrescrite(), l.getQuantiteDispensee());
                 })
                 .toList();
-        var pieceItems = pieces.findByOrdonnanceId(ordonnanceId).stream()
+        var pieceItems = pieces.findByOrganisationIdAndOrdonnanceId(orgId, ordonnanceId).stream()
                 .map(p -> new OrdonnancePieceItem(p.getId(), p.getFichierNom(), p.getContenuType(), p.getStorageKey(), p.getCreatedAt()))
                 .toList();
-        var dispItems = dispensations.findByOrdonnanceId(ordonnanceId).stream()
+        var dispItems = dispensations.findByOrganisationIdAndOrdonnanceId(orgId, ordonnanceId).stream()
                 .map(d -> new DispensationItem(d.getId(), d.getOrdonnanceLigneId(), d.getProduitId(), d.getQuantite(), d.getLotId(), d.getEmplacementId(), d.getCreatedAt(), d.getMotifOverride()))
                 .toList();
         return new OrdonnanceDetailResponse(o.getId(), o.getPatientId(), o.getStatut(), o.getDateExpiration(), lignesItems, pieceItems, dispItems);
+    }
+
+    @GetMapping("/en-attente-validation")
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public List<OrdonnanceResumeResponse> enAttente(JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        return ordonnances.findEnAttenteValidation(orgId).stream()
+                .limit(100)
+                .map(o -> new OrdonnanceResumeResponse(o.getId(), o.getStatut(), o.getDateExpiration()))
+                .toList();
+    }
+
+    @GetMapping("/{ordonnanceId}/pieces/{pieceId}/download")
+    @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadPiece(@PathVariable UUID ordonnanceId, @PathVariable UUID pieceId, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        ordonnances.findByOrganisationIdAndId(orgId, ordonnanceId).orElseThrow();
+        var piece = pieces.findByOrganisationIdAndId(orgId, pieceId).orElseThrow();
+        if (!piece.getOrdonnanceId().equals(ordonnanceId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        var res = storage.loadAsResource(piece.getStorageKey());
+        MediaType mt = piece.getContenuType() == null ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(piece.getContenuType());
+        return ResponseEntity.ok()
+                .contentType(mt)
+                .header("Content-Disposition", "attachment; filename=\"" + piece.getFichierNom().replace("\"", "_") + "\"")
+                .body(res);
+    }
+
+    @PostMapping("/{ordonnanceId}/renouvellement")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public CreerOrdonnanceResponse renouveler(@PathVariable UUID ordonnanceId, @Valid @RequestBody RenouvellementRequest req, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        String posteNom = PosteContext.posteNom(auth);
+        UUID userId = UUID.fromString(auth.getToken().getSubject());
+        UUID newId = renouveler.execute(orgId, ordonnanceId, req.datePrescription(), req.dateExpiration(), userId, posteNom);
+        return new CreerOrdonnanceResponse(newId);
     }
 
     @GetMapping("/patients/{patientId}")
@@ -194,6 +242,9 @@ public class OrdonnanceController {
     }
 
     public record DispensationRequest(@NotNull UUID ordonnanceLigneId, @Min(1) int quantite, String motifOverride) {
+    }
+
+    public record RenouvellementRequest(@NotNull LocalDate datePrescription, LocalDate dateExpiration) {
     }
 
     public record AjouterPieceResponse(UUID pieceId) {

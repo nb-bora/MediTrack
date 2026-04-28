@@ -78,6 +78,14 @@ public class OrdonnanceLigneJpaEntity {
         return quantitePrescrite;
     }
 
+    public String getPosologie() {
+        return posologie;
+    }
+
+    public Integer getDureeJours() {
+        return dureeJours;
+    }
+
     public int getQuantiteDispensee() {
         return quantiteDispensee;
     }

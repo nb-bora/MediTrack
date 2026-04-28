@@ -9,5 +9,7 @@ public interface OrdonnanceLigneJpaRepository extends JpaRepository<OrdonnanceLi
     List<OrdonnanceLigneJpaEntity> findByOrdonnanceId(UUID ordonnanceId);
 
     Optional<OrdonnanceLigneJpaEntity> findByOrganisationIdAndId(UUID organisationId, UUID id);
+
+    List<OrdonnanceLigneJpaEntity> findByOrganisationIdAndOrdonnanceId(UUID organisationId, UUID ordonnanceId);
 }
 

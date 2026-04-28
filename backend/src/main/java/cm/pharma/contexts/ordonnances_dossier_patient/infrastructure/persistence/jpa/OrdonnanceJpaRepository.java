@@ -16,6 +16,15 @@ public interface OrdonnanceJpaRepository extends JpaRepository<OrdonnanceJpaEnti
             select o
             from OrdonnanceJpaEntity o
             where o.organisationId = :organisationId
+              and o.statut = 'EN_ATTENTE_VALIDATION'
+            order by o.createdAt desc
+            """)
+    List<OrdonnanceJpaEntity> findEnAttenteValidation(UUID organisationId);
+
+    @Query("""
+            select o
+            from OrdonnanceJpaEntity o
+            where o.organisationId = :organisationId
               and o.statut in ('VALIDEE','PARTIELLEMENT_DISPENSEE','EN_ATTENTE_VALIDATION')
               and o.dateExpiration = :dateExpiration
             """)

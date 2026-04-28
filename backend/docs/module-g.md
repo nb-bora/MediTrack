@@ -51,6 +51,9 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
 - `GET /api/patients/{patientId}/medical`
   - Rôles: `PHARMACIEN`, `ADMIN`
   - Lecture médical protégé (allergies/pathologies/médecin traitant).
+- `GET /api/patients/{patientId}/historique-dispensations`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Historique des dispensations (limit 500) trié par date décroissante.
 
 #### Ordonnances
 - `POST /api/ordonnances`
@@ -68,9 +71,18 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
 - `GET /api/ordonnances/{ordonnanceId}`
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
   - Retourne détails + lignes + pièces + dispensations.
+- `GET /api/ordonnances/{ordonnanceId}/pieces/{pieceId}/download`
+  - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
+  - Téléchargement d’une pièce (stockage local) avec contrôle d’appartenance à l’ordonnance.
 - `GET /api/ordonnances/patients/{patientId}`
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
   - Liste des ordonnances d’un patient.
+- `GET /api/ordonnances/en-attente-validation`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Liste (limit 100) des ordonnances `EN_ATTENTE_VALIDATION`.
+- `POST /api/ordonnances/{ordonnanceId}/renouvellement`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Crée une nouvelle ordonnance liée (`ordonnance_parent_id`) en recopiant les lignes (posologie/durée incluses).
 
 #### Prescripteurs
 - `POST /api/prescripteurs`

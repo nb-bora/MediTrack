@@ -95,12 +95,20 @@ public class OrdonnanceJpaEntity {
         return patientId;
     }
 
+    public UUID getPrescripteurId() {
+        return prescripteurId;
+    }
+
     public LocalDate getDateExpiration() {
         return dateExpiration;
     }
 
     public String getStatut() {
         return statut;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public void valider(UUID actorId, Instant now) {

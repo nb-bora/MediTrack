@@ -4,6 +4,8 @@ import cm.pharma.contexts.ordonnances_dossier_patient.application.command.CreerP
 import cm.pharma.contexts.ordonnances_dossier_patient.application.command.MettreAJourPatientMedicalUseCase;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientMedicalJpaRepository;
+import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.DispensationJpaRepository;
+import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
 import jakarta.validation.Valid;
@@ -32,17 +34,23 @@ public class PatientController {
     private final MettreAJourPatientMedicalUseCase majMedical;
     private final PatientJpaRepository patients;
     private final PatientMedicalJpaRepository medical;
+    private final DispensationJpaRepository dispensations;
+    private final ProduitJpaRepository produits;
 
     public PatientController(
             CreerPatientUseCase creerPatient,
             MettreAJourPatientMedicalUseCase majMedical,
             PatientJpaRepository patients,
-            PatientMedicalJpaRepository medical
+            PatientMedicalJpaRepository medical,
+            DispensationJpaRepository dispensations,
+            ProduitJpaRepository produits
     ) {
         this.creerPatient = creerPatient;
         this.majMedical = majMedical;
         this.patients = patients;
         this.medical = medical;
+        this.dispensations = dispensations;
+        this.produits = produits;
     }
 
     @PostMapping
@@ -138,6 +146,26 @@ public class PatientController {
                 .orElse(new MedicalView(null, null, null));
     }
 
+    @GetMapping("/{patientId}/historique-dispensations")
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public List<HistoriqueDispensationItem> historiqueDispensations(@PathVariable UUID patientId, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        patients.findByOrganisationIdAndId(orgId, patientId).orElseThrow();
+        return dispensations.findHistoriquePatient(orgId, patientId).stream()
+                .limit(500)
+                .map(d -> new HistoriqueDispensationItem(
+                        d.getCreatedAt(),
+                        d.getOrdonnanceLigneId(),
+                        d.getProduitId(),
+                        produits.findById(d.getProduitId()).map(p -> p.getNomCommercial()).orElse(d.getProduitId().toString()),
+                        d.getQuantite(),
+                        d.getLotId(),
+                        d.getEmplacementId(),
+                        d.getMotifOverride()
+                ))
+                .toList();
+    }
+
     public record CreerPatientRequest(
             @NotBlank String nom,
             @NotBlank String prenom,
@@ -186,6 +214,18 @@ public class PatientController {
             String assuranceOrganismeNom,
             String assuranceNumeroAdherent,
             Double assuranceTauxCouverture
+    ) {
+    }
+
+    public record HistoriqueDispensationItem(
+            java.time.Instant createdAt,
+            UUID ordonnanceLigneId,
+            UUID produitId,
+            String produitLibelle,
+            int quantite,
+            UUID lotId,
+            UUID emplacementId,
+            String motifOverride
     ) {
     }
 }

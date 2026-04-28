@@ -11,6 +11,8 @@ import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 
 @Service
 public class OrdonnancePieceStorageService {
@@ -47,6 +49,26 @@ public class OrdonnancePieceStorageService {
     }
 
     public record StoredPiece(UUID pieceId, String fichierNom, String contenuType, String storageKey) {
+    }
+
+    public Resource loadAsResource(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            throw new BusinessRuleViolationException("storage_key requis");
+        }
+        Path base = Path.of(props.baseDir() == null ? "./data/ordonnances" : props.baseDir());
+        Path file = base.resolve(storageKey).normalize();
+        if (!file.startsWith(base.normalize())) {
+            throw new BusinessRuleViolationException("storage_key invalide");
+        }
+        try {
+            Resource r = new UrlResource(file.toUri());
+            if (!r.exists()) {
+                throw new BusinessRuleViolationException("Fichier introuvable");
+            }
+            return r;
+        } catch (Exception e) {
+            throw new BusinessRuleViolationException("Impossible de lire le fichier");
+        }
     }
 }
 
