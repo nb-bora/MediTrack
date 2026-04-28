@@ -30,6 +30,8 @@ pharma:
   stockage:
     ordonnances:
       base_dir: ${PHARMA_ORDONNANCES_DIR:./data/ordonnances}
+    dossiers_tiers_payant:
+      base_dir: ${PHARMA_DOSSIERS_TP_DIR:./data/dossiers_tiers_payant}
   security:
     jwt:
       issuer: "pharma-system"

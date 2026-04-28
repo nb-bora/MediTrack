@@ -14,6 +14,7 @@ import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteLotJ
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteLotJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaEntity;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
+import cm.pharma.contexts.assurance_mutuelle.application.command.CreerDossierTiersPayantDepuisVenteUseCase;
 import cm.pharma.contexts.referentiel.infrastructure.persistence.jpa.EmplacementJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
@@ -45,6 +46,7 @@ public class ValiderVenteUseCase {
     private final StockEmplacementJpaRepository stock;
     private final MouvementStockJpaRepository mouvements;
     private final AuditWriter auditWriter;
+    private final CreerDossierTiersPayantDepuisVenteUseCase creerDossierTp;
 
     public ValiderVenteUseCase(
             VenteJpaRepository ventes,
@@ -55,7 +57,8 @@ public class ValiderVenteUseCase {
             EmplacementJpaRepository emplacements,
             StockEmplacementJpaRepository stock,
             MouvementStockJpaRepository mouvements,
-            AuditWriter auditWriter
+            AuditWriter auditWriter,
+            CreerDossierTiersPayantDepuisVenteUseCase creerDossierTp
     ) {
         this.ventes = Objects.requireNonNull(ventes);
         this.lignes = Objects.requireNonNull(lignes);
@@ -66,6 +69,7 @@ public class ValiderVenteUseCase {
         this.stock = Objects.requireNonNull(stock);
         this.mouvements = Objects.requireNonNull(mouvements);
         this.auditWriter = Objects.requireNonNull(auditWriter);
+        this.creerDossierTp = Objects.requireNonNull(creerDossierTp);
     }
 
     @Transactional
@@ -90,7 +94,8 @@ public class ValiderVenteUseCase {
             totalNet = BigDecimal.ZERO;
         }
 
-        BigDecimal totalPaye = paiements.findByVenteId(venteId).stream()
+        var paiementsVente = paiements.findByVenteId(venteId);
+        BigDecimal totalPaye = paiementsVente.stream()
                 .map(p -> p.getMontant())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (totalPaye.compareTo(totalNet) < 0) {
@@ -115,6 +120,12 @@ public class ValiderVenteUseCase {
 
         vente.valider(actorId, now);
 
+        UUID dossierTpId = null;
+        boolean hasTiersPayant = paiementsVente.stream().anyMatch(p -> "TIERS_PAYANT".equalsIgnoreCase(p.getModePaiement()));
+        if (hasTiersPayant) {
+            dossierTpId = creerDossierTp.execute(organisationId, venteId, actorId);
+        }
+
         auditWriter.write(AuditEvent.simple(
                 organisationId, now, actorId, null, null,
                 posteNom, null, "VENTE_VALIDEE", "Vente", vente.getNumeroVente(), null,
@@ -124,7 +135,8 @@ public class ValiderVenteUseCase {
                         "total_remise", totalRemise,
                         "arrondi", vente.getArrondi(),
                         "total_net", totalNet,
-                        "paye", totalPaye
+                        "paye", totalPaye,
+                        "dossier_tiers_payant_id", dossierTpId
                 )
         ));
 

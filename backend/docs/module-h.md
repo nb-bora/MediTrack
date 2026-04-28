@@ -19,14 +19,33 @@ Paramétrer des organismes (CNPS, mutuelles), définir leurs règles de couvertu
 
 ### Endpoints (à implémenter)
 
-- Organismes
-  - `POST /api/assurances/organismes`
-  - `GET /api/assurances/organismes`
-  - `PUT /api/assurances/organismes/{id}/couverture`
-- Dossiers tiers payant
-  - `POST /api/assurances/dossiers`
-  - `POST /api/assurances/dossiers/{id}/soumission`
-  - `POST /api/assurances/dossiers/{id}/rejet`
-  - `POST /api/assurances/dossiers/{id}/resoumission`
-  - `POST /api/assurances/dossiers/{id}/paiement`
+#### Organismes
+
+- `POST /api/assurances/organismes` (ADMIN)
+- `GET /api/assurances/organismes` (ADMIN/COMPTABLE/PHARMACIEN)
+- `PUT /api/assurances/organismes/{organismeId}/couverture` (ADMIN)
+- `GET /api/assurances/organismes/{organismeId}/couverture` (ADMIN/COMPTABLE/PHARMACIEN)
+
+#### Dossiers tiers payant
+
+- `GET /api/assurances/dossiers?statut=SOUMIS` (ADMIN/COMPTABLE/PHARMACIEN)
+- `POST /api/assurances/dossiers/{dossierId}/soumission` (ADMIN/COMPTABLE)
+- `POST /api/assurances/dossiers/{dossierId}/rejet` (ADMIN/COMPTABLE) — body: `{ "motif": "..." }`
+- `POST /api/assurances/dossiers/{dossierId}/resoumission` (ADMIN/COMPTABLE)
+- `POST /api/assurances/dossiers/{dossierId}/paiement` (ADMIN/COMPTABLE)
+
+#### Pièces dossier
+
+- `GET /api/assurances/dossiers/{dossierId}/pieces` (ADMIN/COMPTABLE/PHARMACIEN)
+- `POST /api/assurances/dossiers/{dossierId}/pieces` (ADMIN/COMPTABLE) — multipart: `type_piece`, `file`
+- `GET /api/assurances/dossiers/{dossierId}/pieces/{pieceId}/download` (ADMIN/COMPTABLE/PHARMACIEN)
+
+#### Statistiques rejets
+
+- `GET /api/assurances/dossiers/stats/rejets` (ADMIN/COMPTABLE)
+
+### Intégration POS (Module F)
+
+- Si une vente contient un paiement `TIERS_PAYANT`, un dossier `dossier_tiers_payant` est **créé automatiquement** à la validation de la vente, à partir du contexte tiers payant défini sur la vente (patient/organisme/ordonnance/numéro adhérent).
+- Une alerte dédupliquée `DOSSIER_TP_PIECES_A_VERIFIER` est ouverte tant que le dossier est en `BROUILLON` et qu’il reste des pièces obligatoires à joindre/contrôler avant soumission.
 

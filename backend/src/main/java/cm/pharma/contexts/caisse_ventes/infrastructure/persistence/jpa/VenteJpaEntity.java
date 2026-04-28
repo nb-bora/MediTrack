@@ -64,6 +64,18 @@ public class VenteJpaEntity {
     @Column(name = "motif_annulation")
     private String motifAnnulation;
 
+    @Column(name = "patient_id")
+    private UUID patientId;
+
+    @Column(name = "ordonnance_id")
+    private UUID ordonnanceId;
+
+    @Column(name = "organisme_id")
+    private UUID organismeId;
+
+    @Column(name = "numero_adherent")
+    private String numeroAdherent;
+
     protected VenteJpaEntity() {
     }
 
@@ -116,6 +128,22 @@ public class VenteJpaEntity {
         return statut;
     }
 
+    public UUID getPatientId() {
+        return patientId;
+    }
+
+    public UUID getOrdonnanceId() {
+        return ordonnanceId;
+    }
+
+    public UUID getOrganismeId() {
+        return organismeId;
+    }
+
+    public String getNumeroAdherent() {
+        return numeroAdherent;
+    }
+
     public BigDecimal getTotalTtc() {
         return totalTtc;
     }
@@ -151,6 +179,13 @@ public class VenteJpaEntity {
         this.annuleeBy = actorId;
         this.annuleeAt = now;
         this.motifAnnulation = motif;
+    }
+
+    public void setContexteTiersPayant(UUID patientId, UUID organismeId, UUID ordonnanceId, String numeroAdherent) {
+        this.patientId = patientId;
+        this.organismeId = organismeId;
+        this.ordonnanceId = ordonnanceId;
+        this.numeroAdherent = numeroAdherent;
     }
 }
 

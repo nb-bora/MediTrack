@@ -53,5 +53,13 @@ public class PaiementVenteJpaEntity {
     public BigDecimal getMontant() {
         return montant;
     }
+
+    public String getModePaiement() {
+        return modePaiement;
+    }
+
+    public String getReference() {
+        return reference;
+    }
 }
 

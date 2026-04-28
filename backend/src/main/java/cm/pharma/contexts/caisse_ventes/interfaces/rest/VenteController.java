@@ -9,6 +9,7 @@ import cm.pharma.contexts.caisse_ventes.application.command.AnnulerVenteUseCase;
 import cm.pharma.contexts.caisse_ventes.application.command.CreerRetourVenteUseCase;
 import cm.pharma.contexts.caisse_ventes.application.command.AppliquerRemiseUseCase;
 import cm.pharma.contexts.caisse_ventes.application.command.AppliquerArrondiUseCase;
+import cm.pharma.contexts.caisse_ventes.application.command.DefinirTiersPayantVenteUseCase;
 import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
 import jakarta.validation.Valid;
@@ -42,6 +43,7 @@ public class VenteController {
     private final CreerRetourVenteUseCase creerRetourVente;
     private final AppliquerRemiseUseCase appliquerRemise;
     private final AppliquerArrondiUseCase appliquerArrondi;
+    private final DefinirTiersPayantVenteUseCase definirTiersPayant;
 
     public VenteController(
             CreerVenteUseCase creerVente,
@@ -51,7 +53,8 @@ public class VenteController {
             AnnulerVenteUseCase annulerVente,
             CreerRetourVenteUseCase creerRetourVente,
             AppliquerRemiseUseCase appliquerRemise,
-            AppliquerArrondiUseCase appliquerArrondi
+            AppliquerArrondiUseCase appliquerArrondi,
+            DefinirTiersPayantVenteUseCase definirTiersPayant
     ) {
         this.creerVente = creerVente;
         this.scannerEan = scannerEan;
@@ -61,6 +64,7 @@ public class VenteController {
         this.creerRetourVente = creerRetourVente;
         this.appliquerRemise = appliquerRemise;
         this.appliquerArrondi = appliquerArrondi;
+        this.definirTiersPayant = definirTiersPayant;
     }
 
     @PostMapping
@@ -141,6 +145,25 @@ public class VenteController {
         appliquerArrondi.execute(orgId, venteId, req.montant(), userId, posteNom, isCaissier);
     }
 
+    @PostMapping("/{venteId}/tiers-payant")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
+    public void definirTiersPayant(@PathVariable UUID venteId, @Valid @RequestBody TiersPayantRequest req, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        String posteNom = PosteContext.posteNom(auth);
+        UUID userId = UUID.fromString(auth.getToken().getSubject());
+        definirTiersPayant.execute(new DefinirTiersPayantVenteUseCase.DefinirTiersPayantCommand(
+                orgId,
+                venteId,
+                req.patientId(),
+                req.organismeId(),
+                req.ordonnanceId(),
+                req.numeroAdherent(),
+                userId,
+                posteNom
+        ));
+    }
+
     @PostMapping("/{venteId}/annulation")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
@@ -203,6 +226,14 @@ public class VenteController {
     }
 
     public record ArrondiRequest(@NotNull @DecimalMin("0.0") BigDecimal montant) {
+    }
+
+    public record TiersPayantRequest(
+            @NotNull UUID patientId,
+            @NotNull UUID organismeId,
+            UUID ordonnanceId,
+            String numeroAdherent
+    ) {
     }
 
     private static boolean hasRole(JwtAuthenticationToken auth, String role) {

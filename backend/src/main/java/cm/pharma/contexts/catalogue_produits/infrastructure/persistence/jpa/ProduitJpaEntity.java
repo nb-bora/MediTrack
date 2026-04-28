@@ -152,5 +152,13 @@ public class ProduitJpaEntity {
     public boolean isNecessiteOrdonnance() {
         return necessiteOrdonnance;
     }
+
+    public boolean isEstStupefiant() {
+        return estStupefiant;
+    }
+
+    public boolean isEstPsychotrope() {
+        return estPsychotrope;
+    }
 }
 

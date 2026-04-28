@@ -1,5 +1,6 @@
 package cm.pharma;
 
+import cm.pharma.contexts.assurance_mutuelle.bootstrap.TiersPayantStockageProperties;
 import cm.pharma.contexts.ordonnances_dossier_patient.bootstrap.OrdonnancesStockageProperties;
 import cm.pharma.contexts.stocks_tracabilite.bootstrap.StocksReceptionProperties;
 import org.springframework.boot.SpringApplication;
@@ -18,7 +19,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 @SpringBootApplication
 @EnableMethodSecurity
 @EnableScheduling
-@EnableConfigurationProperties({StocksReceptionProperties.class, OrdonnancesStockageProperties.class})
+@EnableConfigurationProperties({StocksReceptionProperties.class, OrdonnancesStockageProperties.class, TiersPayantStockageProperties.class})
 public class PharmaApplication {
 
     public static void main(String[] args) {
