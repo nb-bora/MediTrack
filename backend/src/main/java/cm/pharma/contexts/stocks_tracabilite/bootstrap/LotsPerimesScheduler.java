@@ -4,7 +4,7 @@ import cm.pharma.contexts.referentiel.infrastructure.persistence.jpa.Organisatio
 import java.util.Objects;
 import java.util.UUID;
 import cm.pharma.contexts.stocks_tracabilite.application.command.MettreAJourStatutsPeremptionLotsUseCase;
-import org.springframework.beans.factory.annotation.Value;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,24 +22,25 @@ public class LotsPerimesScheduler {
 
     private final OrganisationJpaRepository organisations;
     private final MettreAJourStatutsPeremptionLotsUseCase majStatutsPeremption;
-    private final int precoceJours;
-    private final int urgenteJours;
+    private final ParametresService parametres;
 
     public LotsPerimesScheduler(
             OrganisationJpaRepository organisations,
             MettreAJourStatutsPeremptionLotsUseCase majStatutsPeremption,
-            @Value("${pharma.stocks.alertes.peremption.precoce_jours:90}") int precoceJours,
-            @Value("${pharma.stocks.alertes.peremption.urgente_jours:30}") int urgenteJours
+            ParametresService parametres
     ) {
         this.organisations = Objects.requireNonNull(organisations);
         this.majStatutsPeremption = Objects.requireNonNull(majStatutsPeremption);
-        this.precoceJours = precoceJours;
-        this.urgenteJours = urgenteJours;
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Scheduled(cron = "0 0 0 * * *")
     public void runEveryMidnight() {
-        organisations.findAll().forEach(org -> majStatutsPeremption.execute(org.getId(), precoceJours, urgenteJours, SYSTEM_USER_ID));
+        organisations.findAll().forEach(org -> {
+            int precoce = parametres.getInt(org.getId(), "ALERTE_PEREMPTION_PRECOCE_JOURS", 90);
+            int urgente = parametres.getInt(org.getId(), "ALERTE_PEREMPTION_URGENTE_JOURS", 30);
+            majStatutsPeremption.execute(org.getId(), precoce, urgente, SYSTEM_USER_ID);
+        });
     }
 }
 

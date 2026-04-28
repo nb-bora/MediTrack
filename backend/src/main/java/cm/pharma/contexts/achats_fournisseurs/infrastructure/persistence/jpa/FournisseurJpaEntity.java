@@ -94,6 +94,14 @@ public class FournisseurJpaEntity {
         return raisonSociale;
     }
 
+    public String getNumeroRc() {
+        return numeroRc;
+    }
+
+    public String getNumeroContribuable() {
+        return numeroContribuable;
+    }
+
     public boolean isActif() {
         return actif;
     }

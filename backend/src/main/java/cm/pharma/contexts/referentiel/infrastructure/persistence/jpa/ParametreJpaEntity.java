@@ -51,5 +51,44 @@ public class ParametreJpaEntity {
         e.updatedAt = now;
         return e;
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getOrganisationId() {
+        return organisationId;
+    }
+
+    public String getCle() {
+        return cle;
+    }
+
+    public String getValeur() {
+        return valeur;
+    }
+
+    public String getTypeValeur() {
+        return typeValeur;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void update(String valeur, String typeValeur, String description, Instant now) {
+        this.valeur = valeur;
+        this.typeValeur = typeValeur;
+        this.description = description;
+        this.updatedAt = now;
+    }
 }
 

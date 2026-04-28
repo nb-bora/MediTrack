@@ -73,6 +73,14 @@ public class BonCommandeLigneJpaEntity {
         return quantiteRecue;
     }
 
+    public BigDecimal getPrixAttenduUnitaire() {
+        return prixAttenduUnitaire;
+    }
+
+    public String getDevise() {
+        return devise;
+    }
+
     public void incrementerQuantiteRecue(int delta) {
         this.quantiteRecue += delta;
     }

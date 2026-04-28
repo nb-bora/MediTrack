@@ -79,6 +79,7 @@ public class EnregistrerReceptionUseCase {
         for (EnregistrerReceptionCommand.LigneReception lr : cmd.lignes()) {
             BonCommandeLigneJpaEntity ligneBc = ctx.lignesByProduit.get(lr.produitId());
             Integer qteCommandee = (ligneBc == null) ? null : ligneBc.getQuantiteCommandee();
+            BigDecimal prixAttendu = (ligneBc == null) ? null : ligneBc.getPrixAttenduUnitaire();
 
             receptionnerStock.execute(new ReceptionnerStockCommand(
                     cmd.organisationId(),
@@ -89,7 +90,7 @@ public class EnregistrerReceptionUseCase {
                     lr.quantiteRecue(),
                     null,
                     qteCommandee,
-                    null,
+                    prixAttendu,
                     lr.prixFactureUnitaire(),
                     lr.temperatureTransportC(),
                     lr.confirmerPeremptionProche(),
@@ -118,8 +119,7 @@ public class EnregistrerReceptionUseCase {
 
             // Workflow "prix différent" : si on réceptionne avec prix facture renseigné et qu’un prix attendu existe côté BC,
             // on ouvre une alerte et on marque la réception "EN_ATTENTE".
-            // V1 : prix attendu n’est pas exposé par l’entité (getter absent), donc on déclenche seulement si le client envoie un prix facture.
-            prixMismatch = prixMismatch || shouldFlagPrixValidation(cmd, lr);
+            prixMismatch = prixMismatch || shouldFlagPrixValidation(cmd, lr, prixAttendu);
         }
 
         if (prixMismatch) {
@@ -148,8 +148,11 @@ public class EnregistrerReceptionUseCase {
         return receptionId;
     }
 
-    private static boolean shouldFlagPrixValidation(EnregistrerReceptionCommand cmd, EnregistrerReceptionCommand.LigneReception lr) {
-        return cmd.bonCommandeId() != null && lr.prixFactureUnitaire() != null;
+    private static boolean shouldFlagPrixValidation(EnregistrerReceptionCommand cmd, EnregistrerReceptionCommand.LigneReception lr, BigDecimal prixAttendu) {
+        return cmd.bonCommandeId() != null
+                && prixAttendu != null
+                && lr.prixFactureUnitaire() != null
+                && prixAttendu.compareTo(lr.prixFactureUnitaire()) != 0;
     }
 
     private record BonCommandeReceptionContext(BonCommandeJpaEntity bonCommande, Map<UUID, BonCommandeLigneJpaEntity> lignesByProduit) {

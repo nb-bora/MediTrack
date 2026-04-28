@@ -33,15 +33,21 @@ public class ModifierFournisseurUseCase {
                 && fournisseurs.existsByOrganisationIdAndRaisonSocialeIgnoreCase(organisationId, raison)) {
             throw new BusinessRuleViolationException("Doublon fournisseur (raison sociale)");
         }
-        if (cmd.numeroRc() != null && !cmd.numeroRc().isBlank()
-                && (f.getRaisonSociale() != null) // no getter for numeroRc in entity; V1: check only existence
-                && fournisseurs.existsByOrganisationIdAndNumeroRcIgnoreCase(organisationId, cmd.numeroRc().trim())) {
-            // best-effort: DB will enforce exact uniqueness anyway
-            throw new BusinessRuleViolationException("Doublon fournisseur (RC)");
+        if (cmd.numeroRc() != null && !cmd.numeroRc().isBlank()) {
+            String rc = cmd.numeroRc().trim();
+            String current = f.getNumeroRc();
+            boolean changed = current == null || !current.equalsIgnoreCase(rc);
+            if (changed && fournisseurs.existsByOrganisationIdAndNumeroRcIgnoreCase(organisationId, rc)) {
+                throw new BusinessRuleViolationException("Doublon fournisseur (RC)");
+            }
         }
-        if (cmd.numeroContribuable() != null && !cmd.numeroContribuable().isBlank()
-                && fournisseurs.existsByOrganisationIdAndNumeroContribuableIgnoreCase(organisationId, cmd.numeroContribuable().trim())) {
-            throw new BusinessRuleViolationException("Doublon fournisseur (N° contribuable)");
+        if (cmd.numeroContribuable() != null && !cmd.numeroContribuable().isBlank()) {
+            String nc = cmd.numeroContribuable().trim();
+            String current = f.getNumeroContribuable();
+            boolean changed = current == null || !current.equalsIgnoreCase(nc);
+            if (changed && fournisseurs.existsByOrganisationIdAndNumeroContribuableIgnoreCase(organisationId, nc)) {
+                throw new BusinessRuleViolationException("Doublon fournisseur (N° contribuable)");
+            }
         }
 
         Instant now = Instant.now();

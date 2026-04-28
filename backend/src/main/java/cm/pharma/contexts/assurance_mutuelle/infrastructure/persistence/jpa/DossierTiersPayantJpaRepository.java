@@ -12,6 +12,18 @@ public interface DossierTiersPayantJpaRepository extends JpaRepository<DossierTi
     List<DossierTiersPayantJpaEntity> findByOrganisationIdAndStatutOrderByCreatedAtDesc(UUID organisationId, String statut);
 
     @Query("""
+            select coalesce(sum(d.montantPriseEnCharge), 0)
+            from DossierTiersPayantJpaEntity d
+            where d.organisationId = :organisationId
+              and d.organismeId = :organismeId
+              and d.patientId = :patientId
+              and d.statut in ('SOUMIS','RESOUMIS','PAYE')
+              and d.createdAt >= :from
+              and d.createdAt < :to
+            """)
+    java.math.BigDecimal sumPriseEnChargePeriode(UUID organisationId, UUID organismeId, UUID patientId, java.time.Instant from, java.time.Instant to);
+
+    @Query("""
             select d.motifRejet as motif, count(d.id) as nb
             from DossierTiersPayantJpaEntity d
             where d.organisationId = :organisationId

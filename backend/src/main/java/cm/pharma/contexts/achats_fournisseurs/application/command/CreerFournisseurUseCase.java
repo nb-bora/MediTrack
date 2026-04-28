@@ -33,6 +33,14 @@ public class CreerFournisseurUseCase {
         if (fournisseurs.existsByOrganisationIdAndRaisonSocialeIgnoreCase(cmd.organisationId(), raison)) {
             throw new BusinessRuleViolationException("Fournisseur déjà existant (raison sociale)");
         }
+        if (cmd.numeroRc() != null && !cmd.numeroRc().isBlank()
+                && fournisseurs.existsByOrganisationIdAndNumeroRcIgnoreCase(cmd.organisationId(), cmd.numeroRc().trim())) {
+            throw new BusinessRuleViolationException("Fournisseur déjà existant (RC)");
+        }
+        if (cmd.numeroContribuable() != null && !cmd.numeroContribuable().isBlank()
+                && fournisseurs.existsByOrganisationIdAndNumeroContribuableIgnoreCase(cmd.organisationId(), cmd.numeroContribuable().trim())) {
+            throw new BusinessRuleViolationException("Fournisseur déjà existant (N° contribuable)");
+        }
 
         Instant now = Instant.now();
         UUID id = UUID.randomUUID();

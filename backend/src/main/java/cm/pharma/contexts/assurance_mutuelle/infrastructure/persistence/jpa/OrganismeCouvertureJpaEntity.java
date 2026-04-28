@@ -120,6 +120,18 @@ public class OrganismeCouvertureJpaEntity {
         return tauxStupefiants;
     }
 
+    public BigDecimal getPlafondJournalier() {
+        return plafondJournalier;
+    }
+
+    public BigDecimal getPlafondMensuel() {
+        return plafondMensuel;
+    }
+
+    public BigDecimal getPlafondAnnuel() {
+        return plafondAnnuel;
+    }
+
     public boolean isPieceOrdonnanceOriginale() {
         return pieceOrdonnanceOriginale;
     }

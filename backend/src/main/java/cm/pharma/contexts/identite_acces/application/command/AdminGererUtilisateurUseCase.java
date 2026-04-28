@@ -7,6 +7,7 @@ import cm.pharma.contexts.identite_acces.infrastructure.persistence.jpa.Utilisat
 import cm.pharma.contexts.identite_acces.infrastructure.persistence.jpa.UtilisateurJpaRepository;
 import cm.pharma.contexts.identite_acces.infrastructure.security.PasswordHasher;
 import cm.pharma.contexts.identite_acces.infrastructure.security.TokenGenerator;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -23,12 +24,14 @@ public class AdminGererUtilisateurUseCase {
     private final PasswordHasher hasher;
     private final TokenGenerator tokenGenerator;
     private final AuditWriter auditWriter;
+    private final ParametresService parametres;
 
-    public AdminGererUtilisateurUseCase(UtilisateurJpaRepository utilisateurs, PasswordHasher hasher, TokenGenerator tokenGenerator, AuditWriter auditWriter) {
+    public AdminGererUtilisateurUseCase(UtilisateurJpaRepository utilisateurs, PasswordHasher hasher, TokenGenerator tokenGenerator, AuditWriter auditWriter, ParametresService parametres) {
         this.utilisateurs = Objects.requireNonNull(utilisateurs);
         this.hasher = Objects.requireNonNull(hasher);
         this.tokenGenerator = Objects.requireNonNull(tokenGenerator);
         this.auditWriter = Objects.requireNonNull(auditWriter);
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Transactional
@@ -67,10 +70,15 @@ public class AdminGererUtilisateurUseCase {
                 .orElseThrow(() -> new BusinessRuleViolationException("Utilisateur introuvable"));
 
         String tempPassword = tokenGenerator.randomUrlSafeToken(12) + "A1!";
-        PasswordPolicy.assertValid(tempPassword);
+        int minLen = parametres.getInt(organisationId, "PASSWORD_MIN_LENGTH", 8);
+        boolean reqUpper = parametres.getBoolean(organisationId, "PASSWORD_REQUIRE_UPPER", true);
+        boolean reqDigit = parametres.getBoolean(organisationId, "PASSWORD_REQUIRE_DIGIT", true);
+        boolean reqSpecial = parametres.getBoolean(organisationId, "PASSWORD_REQUIRE_SPECIAL", true);
+        PasswordPolicy.assertValid(tempPassword, minLen, reqUpper, reqDigit, reqSpecial);
 
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(90, ChronoUnit.DAYS);
+        int expiryDays = Math.max(1, parametres.getInt(organisationId, "PASSWORD_EXPIRY_DAYS", 90));
+        Instant expiresAt = now.plus(expiryDays, ChronoUnit.DAYS);
         u.setPasswordHash(hasher.hash(tempPassword));
         u.setDoitChangerMdp(true);
         u.setMdpExpiresAt(expiresAt);

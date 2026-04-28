@@ -17,6 +17,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
+import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
 import cm.pharma.shared.application.AlerteService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
@@ -42,6 +43,7 @@ public class DispenserOrdonnanceUseCase {
     private final EmplacementJpaRepository emplacements;
     private final StockEmplacementJpaRepository stock;
     private final MouvementStockJpaRepository mouvements;
+    private final InventaireJpaRepository inventaires;
     private final AlerteService alerteService;
     private final AuditWriter auditWriter;
 
@@ -54,6 +56,7 @@ public class DispenserOrdonnanceUseCase {
             EmplacementJpaRepository emplacements,
             StockEmplacementJpaRepository stock,
             MouvementStockJpaRepository mouvements,
+            InventaireJpaRepository inventaires,
             AlerteService alerteService,
             AuditWriter auditWriter
     ) {
@@ -65,6 +68,7 @@ public class DispenserOrdonnanceUseCase {
         this.emplacements = Objects.requireNonNull(emplacements);
         this.stock = Objects.requireNonNull(stock);
         this.mouvements = Objects.requireNonNull(mouvements);
+        this.inventaires = Objects.requireNonNull(inventaires);
         this.alerteService = Objects.requireNonNull(alerteService);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
@@ -72,6 +76,10 @@ public class DispenserOrdonnanceUseCase {
     @Transactional
     public void execute(DispenserCommand cmd) {
         Objects.requireNonNull(cmd);
+        inventaires.findOuvert(cmd.organisationId()).ifPresent(i -> {
+            throw new BusinessRuleViolationException("Mouvements bloqués: inventaire ouvert");
+        });
+
         if (cmd.quantite() <= 0) {
             throw new BusinessRuleViolationException("Quantité invalide");
         }

@@ -6,6 +6,7 @@ import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaE
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaRepository;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteLigneJpaEntity;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteLigneJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -19,16 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AppliquerRemiseUseCase {
 
-    private static final BigDecimal REMISE_MAX_CAISSIER_PCT = new BigDecimal("5");
-    private static final BigDecimal REMISE_MAX_PHARMACIEN_PCT = new BigDecimal("15");
-
     private final VenteJpaRepository ventes;
     private final VenteLigneJpaRepository lignes;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
-    public AppliquerRemiseUseCase(VenteJpaRepository ventes, VenteLigneJpaRepository lignes, AuditWriter auditWriter) {
+    public AppliquerRemiseUseCase(VenteJpaRepository ventes, VenteLigneJpaRepository lignes, ParametresService parametres, AuditWriter auditWriter) {
         this.ventes = Objects.requireNonNull(ventes);
         this.lignes = Objects.requireNonNull(lignes);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -42,16 +42,19 @@ public class AppliquerRemiseUseCase {
         }
 
         // Règles rôles
-        if (isCaissier && remisePct.compareTo(REMISE_MAX_CAISSIER_PCT) > 0) {
-            throw new BusinessRuleViolationException("Remise caissier limitée à 5%");
+        BigDecimal maxCaissier = parametres.getBigDecimal(organisationId, "REMISE_MAX_CAISSIER_PCT", new BigDecimal("5"));
+        BigDecimal maxPharmacien = parametres.getBigDecimal(organisationId, "REMISE_MAX_PHARMACIEN_PCT", new BigDecimal("15"));
+
+        if (isCaissier && remisePct.compareTo(maxCaissier) > 0) {
+            throw new BusinessRuleViolationException("Remise caissier limitée à " + maxCaissier + "%");
         }
-        if (isPharmacien && remisePct.compareTo(REMISE_MAX_PHARMACIEN_PCT) > 0 && !isAdmin) {
-            throw new BusinessRuleViolationException("Remise pharmacien limitée à 15% (au-delà: admin)");
+        if (isPharmacien && remisePct.compareTo(maxPharmacien) > 0 && !isAdmin) {
+            throw new BusinessRuleViolationException("Remise pharmacien limitée à " + maxPharmacien + "% (au-delà: admin)");
         }
-        if (!isAdmin && remisePct.compareTo(REMISE_MAX_PHARMACIEN_PCT) > 0 && !isPharmacien) {
+        if (!isAdmin && remisePct.compareTo(maxPharmacien) > 0 && !isPharmacien) {
             throw new BusinessRuleViolationException("Remise exceptionnelle réservée à l'admin");
         }
-        if (remisePct.compareTo(REMISE_MAX_PHARMACIEN_PCT) > 0 && (motif == null || motif.isBlank())) {
+        if (remisePct.compareTo(maxPharmacien) > 0 && (motif == null || motif.isBlank())) {
             throw new BusinessRuleViolationException("Motif obligatoire pour remise exceptionnelle");
         }
 

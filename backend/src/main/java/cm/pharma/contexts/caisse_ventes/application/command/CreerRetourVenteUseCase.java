@@ -18,6 +18,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
+import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -50,6 +51,7 @@ public class CreerRetourVenteUseCase {
     private final StockEmplacementJpaRepository stock;
     private final LotStockJpaRepository lotsStock;
     private final MouvementStockJpaRepository mouvements;
+    private final InventaireJpaRepository inventaires;
     private final NumerotationService numerotation;
     private final AuditWriter auditWriter;
 
@@ -62,6 +64,7 @@ public class CreerRetourVenteUseCase {
             StockEmplacementJpaRepository stock,
             LotStockJpaRepository lotsStock,
             MouvementStockJpaRepository mouvements,
+            InventaireJpaRepository inventaires,
             NumerotationService numerotation,
             AuditWriter auditWriter
     ) {
@@ -73,6 +76,7 @@ public class CreerRetourVenteUseCase {
         this.stock = Objects.requireNonNull(stock);
         this.lotsStock = Objects.requireNonNull(lotsStock);
         this.mouvements = Objects.requireNonNull(mouvements);
+        this.inventaires = Objects.requireNonNull(inventaires);
         this.numerotation = Objects.requireNonNull(numerotation);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
@@ -80,6 +84,10 @@ public class CreerRetourVenteUseCase {
     @Transactional
     public RetourVenteResult execute(CreerRetourVenteCommand cmd) {
         Objects.requireNonNull(cmd);
+        inventaires.findOuvert(cmd.organisationId()).ifPresent(i -> {
+            throw new BusinessRuleViolationException("Mouvements bloqués: inventaire ouvert");
+        });
+
         if (!MODES.contains(cmd.modeRemboursement())) {
             throw new BusinessRuleViolationException("Mode remboursement non supporté");
         }

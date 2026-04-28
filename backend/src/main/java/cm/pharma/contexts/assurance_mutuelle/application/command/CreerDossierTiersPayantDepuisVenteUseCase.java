@@ -14,7 +14,10 @@ import cm.pharma.contexts.referentiel.application.service.NumerotationService;
 import cm.pharma.shared.application.AlerteService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -67,16 +70,23 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
         }
 
         BigDecimal total = BigDecimal.ZERO;
-        BigDecimal prise = BigDecimal.ZERO;
+        BigDecimal priseTheorique = BigDecimal.ZERO;
         for (var l : lignesVente) {
             ProduitJpaEntity p = produits.findById(l.getProduitId()).orElseThrow(() -> new BusinessRuleViolationException("Produit introuvable"));
             BigDecimal taux = TiersPayantCalculator.tauxApplicable(c, p);
             total = total.add(l.getTotalLigne());
-            prise = prise.add(TiersPayantCalculator.computePriseEnCharge(l.getTotalLigne(), taux));
+            priseTheorique = priseTheorique.add(TiersPayantCalculator.computePriseEnCharge(l.getTotalLigne(), taux));
         }
-        BigDecimal reste = total.subtract(prise);
+        BigDecimal prisePlafonnee = appliquerPlafonds(organisationId, vente.getOrganismeId(), vente.getPatientId(), c, priseTheorique);
+        BigDecimal reste = total.subtract(prisePlafonnee);
         if (reste.compareTo(BigDecimal.ZERO) < 0) {
             reste = BigDecimal.ZERO;
+        }
+        if (prisePlafonnee.compareTo(BigDecimal.ZERO) < 0) {
+            prisePlafonnee = BigDecimal.ZERO;
+        }
+        if (prisePlafonnee.compareTo(total) > 0) {
+            prisePlafonnee = total;
         }
 
         Instant now = Instant.now();
@@ -91,9 +101,9 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
                 vente.getOrdonnanceId(),
                 numero,
                 // Taux global non strict (on stocke la moyenne simple pour affichage)
-                total.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : prise.multiply(new BigDecimal("100")).divide(total, 2, java.math.RoundingMode.HALF_UP),
+                total.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : prisePlafonnee.multiply(new BigDecimal("100")).divide(total, 2, RoundingMode.HALF_UP),
                 total,
-                prise,
+                prisePlafonnee,
                 reste,
                 actorId,
                 now
@@ -113,6 +123,57 @@ public class CreerDossierTiersPayantDepuisVenteUseCase {
         }
 
         return dossierId;
+    }
+
+    private BigDecimal appliquerPlafonds(
+            UUID organisationId,
+            UUID organismeId,
+            UUID patientId,
+            OrganismeCouvertureJpaEntity c,
+            BigDecimal priseTheorique
+    ) {
+        if (priseTheorique == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal remaining = priseTheorique;
+
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now();
+        Instant startDay = today.atStartOfDay(zone).toInstant();
+        Instant startTomorrow = today.plusDays(1).atStartOfDay(zone).toInstant();
+        Instant startMonth = today.withDayOfMonth(1).atStartOfDay(zone).toInstant();
+        Instant startNextMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay(zone).toInstant();
+        Instant startYear = today.withDayOfYear(1).atStartOfDay(zone).toInstant();
+        Instant startNextYear = today.plusYears(1).withDayOfYear(1).atStartOfDay(zone).toInstant();
+
+        remaining = capByRemainingCeiling(remaining, c.getPlafondJournalier(),
+                dossiers.sumPriseEnChargePeriode(organisationId, organismeId, patientId, startDay, startTomorrow));
+        remaining = capByRemainingCeiling(remaining, c.getPlafondMensuel(),
+                dossiers.sumPriseEnChargePeriode(organisationId, organismeId, patientId, startMonth, startNextMonth));
+        remaining = capByRemainingCeiling(remaining, c.getPlafondAnnuel(),
+                dossiers.sumPriseEnChargePeriode(organisationId, organismeId, patientId, startYear, startNextYear));
+
+        return remaining;
+    }
+
+    private static BigDecimal capByRemainingCeiling(BigDecimal desired, BigDecimal plafond, BigDecimal dejaPris) {
+        if (desired == null) {
+            return BigDecimal.ZERO;
+        }
+        if (plafond == null) {
+            return desired;
+        }
+        if (plafond.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (dejaPris == null) {
+            dejaPris = BigDecimal.ZERO;
+        }
+        BigDecimal restant = plafond.subtract(dejaPris);
+        if (restant.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return desired.min(restant);
     }
 }
 

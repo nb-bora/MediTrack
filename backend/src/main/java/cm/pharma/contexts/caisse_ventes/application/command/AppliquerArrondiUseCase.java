@@ -4,6 +4,7 @@ import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaEntity;
 import cm.pharma.contexts.caisse_ventes.infrastructure.persistence.jpa.VenteJpaRepository;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,13 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AppliquerArrondiUseCase {
 
-    private static final BigDecimal ARRONDI_MAX_CAISSIER = new BigDecimal("50");
-
     private final VenteJpaRepository ventes;
+    private final ParametresService parametres;
     private final AuditWriter auditWriter;
 
-    public AppliquerArrondiUseCase(VenteJpaRepository ventes, AuditWriter auditWriter) {
+    public AppliquerArrondiUseCase(VenteJpaRepository ventes, ParametresService parametres, AuditWriter auditWriter) {
         this.ventes = Objects.requireNonNull(ventes);
+        this.parametres = Objects.requireNonNull(parametres);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -31,8 +32,9 @@ public class AppliquerArrondiUseCase {
         if (montant == null || montant.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessRuleViolationException("Arrondi invalide");
         }
-        if (isCaissier && montant.compareTo(ARRONDI_MAX_CAISSIER) > 0) {
-            throw new BusinessRuleViolationException("Arrondi caissier limité à 50 XAF");
+        BigDecimal maxCaissier = parametres.getBigDecimal(organisationId, "ARRONDI_MAX_CAISSIER", new BigDecimal("50"));
+        if (isCaissier && montant.compareTo(maxCaissier) > 0) {
+            throw new BusinessRuleViolationException("Arrondi caissier limité à " + maxCaissier + " XAF");
         }
 
         VenteJpaEntity vente = ventes.findByOrganisationIdAndId(organisationId, venteId)

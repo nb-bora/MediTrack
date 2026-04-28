@@ -15,6 +15,7 @@ import cm.pharma.contexts.identite_acces.infrastructure.security.JwtTokenService
 import cm.pharma.contexts.identite_acces.infrastructure.security.PasswordHasher;
 import cm.pharma.contexts.identite_acces.infrastructure.security.RefreshTokenHasher;
 import cm.pharma.contexts.identite_acces.infrastructure.security.TokenGenerator;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
-    private static final int MAX_FAILED_ATTEMPTS = 5;
-    private static final Duration LOCK_UNTIL_FAR_FUTURE = Duration.ofDays(3650); // “débloqué uniquement par admin”
     private static final String ENTITY_UTILISATEUR = "Utilisateur";
     private static final String ENTITY_SESSION_AUTH = "SessionAuth";
 
@@ -49,6 +49,7 @@ public class AuthService {
     private final UtilisateurJpaRepository utilisateurs;
     private final PasswordHistoryJpaRepository passwordHistory;
     private final AuditWriter auditWriter;
+    private final ParametresService parametres;
     private final Duration refreshTtl;
 
     public AuthService(
@@ -61,6 +62,7 @@ public class AuthService {
             UtilisateurJpaRepository utilisateurs,
             PasswordHistoryJpaRepository passwordHistory,
             AuditWriter auditWriter,
+            ParametresService parametres,
             @Value("${pharma.security.jwt.refresh-token-ttl}") Duration refreshTtl
     ) {
         this.authQuery = Objects.requireNonNull(authQuery);
@@ -72,6 +74,7 @@ public class AuthService {
         this.utilisateurs = Objects.requireNonNull(utilisateurs);
         this.passwordHistory = Objects.requireNonNull(passwordHistory);
         this.auditWriter = Objects.requireNonNull(auditWriter);
+        this.parametres = Objects.requireNonNull(parametres);
         this.refreshTtl = Objects.requireNonNull(refreshTtl);
     }
 
@@ -236,11 +239,13 @@ public class AuthService {
             throw new BusinessRuleViolationException("Ancien mot de passe incorrect");
         }
 
-        // Vérifie non-réutilisation des 5 derniers
-        var history = passwordHistory.findTop5ByUtilisateurIdOrderByCreatedAtDesc(utilisateurId);
+        int historyCount = Math.max(1, parametres.getInt(user.getOrganisationId(), "PASSWORD_HISTORY_COUNT", 5));
+
+        // Vérifie non-réutilisation des N derniers
+        var history = passwordHistory.findByUtilisateurIdOrderByCreatedAtDesc(utilisateurId, PageRequest.of(0, historyCount));
         for (var h : history) {
             if (passwordHasher.matches(nouveauMdp, h.getPasswordHash())) {
-                throw new BusinessRuleViolationException("Mot de passe déjà utilisé récemment (5 derniers)");
+                throw new BusinessRuleViolationException("Mot de passe déjà utilisé récemment");
             }
         }
         // inclut l’actuel
@@ -250,7 +255,8 @@ public class AuthService {
 
         String newHash = passwordHasher.hash(nouveauMdp);
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(90, ChronoUnit.DAYS);
+        int expiryDays = Math.max(1, parametres.getInt(user.getOrganisationId(), "PASSWORD_EXPIRY_DAYS", 90));
+        Instant expiresAt = now.plus(expiryDays, ChronoUnit.DAYS);
 
         // Archive l’ancien hash dans l’historique
         passwordHistory.save(PasswordHistoryJpaEntity.from(UUID.randomUUID(), utilisateurId, user.getPasswordHash(), now));
@@ -272,15 +278,17 @@ public class AuthService {
         Instant now = Instant.now();
         UtilisateurJpaEntity user = utilisateurs.findById(userId).orElse(null);
         if (user != null) {
+            int maxAttempts = Math.max(1, parametres.getInt(orgId, "AUTH_MAX_FAILED_ATTEMPTS", 5));
+            int lockDays = Math.max(1, parametres.getInt(orgId, "AUTH_LOCK_DAYS", 3650));
             int attempts = user.getTentativesEchec() + 1;
             user.setTentativesEchec(attempts);
-            if (attempts >= MAX_FAILED_ATTEMPTS) {
-                user.setVerrouilleJusqua(now.plus(LOCK_UNTIL_FAR_FUTURE));
+            if (attempts >= maxAttempts) {
+                user.setVerrouilleJusqua(now.plus(Duration.ofDays(lockDays)));
             }
             user.touch(now);
             utilisateurs.save(user);
 
-            if (attempts == MAX_FAILED_ATTEMPTS) {
+            if (attempts == maxAttempts) {
                 auditWriter.write(AuditEvent.simple(
                         user.getOrganisationId(), now, userId, user.getPrenom() + " " + user.getNom(), null,
                         poste, ip, "COMPTE_VERROUILLE", ENTITY_UTILISATEUR, userId.toString(), null,

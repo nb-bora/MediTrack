@@ -24,19 +24,24 @@ public final class PasswordPolicy {
     }
 
     public static void assertValid(String rawPassword) {
+        assertValid(rawPassword, MIN_LENGTH, true, true, true);
+    }
+
+    public static void assertValid(String rawPassword, int minLength, boolean requireUpper, boolean requireDigit, boolean requireSpecial) {
         if (rawPassword == null || rawPassword.isBlank()) {
             throw new BusinessRuleViolationException("Mot de passe requis");
         }
-        if (rawPassword.length() < MIN_LENGTH) {
-            throw new BusinessRuleViolationException("Mot de passe trop court (minimum " + MIN_LENGTH + " caractères)");
+        int ml = Math.max(1, minLength);
+        if (rawPassword.length() < ml) {
+            throw new BusinessRuleViolationException("Mot de passe trop court (minimum " + ml + " caractères)");
         }
-        if (!UPPER.matcher(rawPassword).matches()) {
+        if (requireUpper && !UPPER.matcher(rawPassword).matches()) {
             throw new BusinessRuleViolationException("Mot de passe invalide : une majuscule est requise");
         }
-        if (!DIGIT.matcher(rawPassword).matches()) {
+        if (requireDigit && !DIGIT.matcher(rawPassword).matches()) {
             throw new BusinessRuleViolationException("Mot de passe invalide : un chiffre est requis");
         }
-        if (!SPECIAL.matcher(rawPassword).matches()) {
+        if (requireSpecial && !SPECIAL.matcher(rawPassword).matches()) {
             throw new BusinessRuleViolationException("Mot de passe invalide : un caractère spécial est requis");
         }
     }

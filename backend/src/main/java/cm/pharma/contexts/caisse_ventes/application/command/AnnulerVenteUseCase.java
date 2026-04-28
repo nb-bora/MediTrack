@@ -13,6 +13,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
+import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.util.List;
@@ -31,6 +32,7 @@ public class AnnulerVenteUseCase {
     private final StockEmplacementJpaRepository stock;
     private final LotStockJpaRepository lotsStock;
     private final MouvementStockJpaRepository mouvements;
+    private final InventaireJpaRepository inventaires;
     private final AuditWriter auditWriter;
 
     public AnnulerVenteUseCase(
@@ -40,6 +42,7 @@ public class AnnulerVenteUseCase {
             StockEmplacementJpaRepository stock,
             LotStockJpaRepository lotsStock,
             MouvementStockJpaRepository mouvements,
+            InventaireJpaRepository inventaires,
             AuditWriter auditWriter
     ) {
         this.ventes = Objects.requireNonNull(ventes);
@@ -48,11 +51,16 @@ public class AnnulerVenteUseCase {
         this.stock = Objects.requireNonNull(stock);
         this.lotsStock = Objects.requireNonNull(lotsStock);
         this.mouvements = Objects.requireNonNull(mouvements);
+        this.inventaires = Objects.requireNonNull(inventaires);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
     @Transactional
     public void execute(UUID organisationId, UUID venteId, UUID actorId, String posteNom, String motif) {
+        inventaires.findOuvert(organisationId).ifPresent(i -> {
+            throw new BusinessRuleViolationException("Mouvements bloqués: inventaire ouvert");
+        });
+
         if (motif == null || motif.isBlank()) {
             throw new BusinessRuleViolationException("Motif d'annulation obligatoire");
         }

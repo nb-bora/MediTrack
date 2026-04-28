@@ -20,6 +20,7 @@ import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.Mouv
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.StockEmplacementJpaRepository;
+import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.InventaireJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -45,6 +46,7 @@ public class ValiderVenteUseCase {
     private final EmplacementJpaRepository emplacements;
     private final StockEmplacementJpaRepository stock;
     private final MouvementStockJpaRepository mouvements;
+    private final InventaireJpaRepository inventaires;
     private final AuditWriter auditWriter;
     private final CreerDossierTiersPayantDepuisVenteUseCase creerDossierTp;
 
@@ -57,6 +59,7 @@ public class ValiderVenteUseCase {
             EmplacementJpaRepository emplacements,
             StockEmplacementJpaRepository stock,
             MouvementStockJpaRepository mouvements,
+            InventaireJpaRepository inventaires,
             AuditWriter auditWriter,
             CreerDossierTiersPayantDepuisVenteUseCase creerDossierTp
     ) {
@@ -68,12 +71,17 @@ public class ValiderVenteUseCase {
         this.emplacements = Objects.requireNonNull(emplacements);
         this.stock = Objects.requireNonNull(stock);
         this.mouvements = Objects.requireNonNull(mouvements);
+        this.inventaires = Objects.requireNonNull(inventaires);
         this.auditWriter = Objects.requireNonNull(auditWriter);
         this.creerDossierTp = Objects.requireNonNull(creerDossierTp);
     }
 
     @Transactional
     public ValiderVenteResult execute(UUID organisationId, UUID venteId, UUID actorId, String posteNom, boolean peutValiderOrdonnance) {
+        inventaires.findOuvert(organisationId).ifPresent(i -> {
+            throw new BusinessRuleViolationException("Mouvements bloqués: inventaire ouvert");
+        });
+
         VenteJpaEntity vente = ventes.findByOrganisationIdAndId(organisationId, venteId)
                 .orElseThrow(() -> new BusinessRuleViolationException("Vente introuvable"));
         if (!"BROUILLON".equals(vente.getStatut())) {

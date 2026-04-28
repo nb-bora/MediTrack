@@ -12,6 +12,7 @@ import cm.pharma.contexts.identite_acces.infrastructure.persistence.jpa.Utilisat
 import cm.pharma.contexts.identite_acces.infrastructure.persistence.jpa.UtilisateurRoleJpaRepository;
 import cm.pharma.contexts.identite_acces.infrastructure.security.PasswordHasher;
 import cm.pharma.contexts.identite_acces.infrastructure.security.TokenGenerator;
+import cm.pharma.contexts.referentiel.application.service.ParametresService;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -30,6 +31,7 @@ public class CreerUtilisateurUseCase {
     private final PasswordHasher hasher;
     private final TokenGenerator tokenGenerator;
     private final AuditWriter auditWriter;
+    private final ParametresService parametres;
 
     public CreerUtilisateurUseCase(
             UtilisateurJpaRepository utilisateurs,
@@ -37,7 +39,8 @@ public class CreerUtilisateurUseCase {
             UtilisateurRoleJpaRepository utilisateurRoles,
             PasswordHasher hasher,
             TokenGenerator tokenGenerator,
-            AuditWriter auditWriter
+            AuditWriter auditWriter,
+            ParametresService parametres
     ) {
         this.utilisateurs = Objects.requireNonNull(utilisateurs);
         this.roles = Objects.requireNonNull(roles);
@@ -45,6 +48,7 @@ public class CreerUtilisateurUseCase {
         this.hasher = Objects.requireNonNull(hasher);
         this.tokenGenerator = Objects.requireNonNull(tokenGenerator);
         this.auditWriter = Objects.requireNonNull(auditWriter);
+        this.parametres = Objects.requireNonNull(parametres);
     }
 
     @Transactional
@@ -69,10 +73,15 @@ public class CreerUtilisateurUseCase {
 
         // Mot de passe temporaire : renvoyé UNE SEULE fois
         String tempPassword = tokenGenerator.randomUrlSafeToken(12) + "A1!";
-        PasswordPolicy.assertValid(tempPassword);
+        int minLen = parametres.getInt(cmd.organisationId(), "PASSWORD_MIN_LENGTH", 8);
+        boolean reqUpper = parametres.getBoolean(cmd.organisationId(), "PASSWORD_REQUIRE_UPPER", true);
+        boolean reqDigit = parametres.getBoolean(cmd.organisationId(), "PASSWORD_REQUIRE_DIGIT", true);
+        boolean reqSpecial = parametres.getBoolean(cmd.organisationId(), "PASSWORD_REQUIRE_SPECIAL", true);
+        PasswordPolicy.assertValid(tempPassword, minLen, reqUpper, reqDigit, reqSpecial);
 
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(90, ChronoUnit.DAYS);
+        int expiryDays = Math.max(1, parametres.getInt(cmd.organisationId(), "PASSWORD_EXPIRY_DAYS", 90));
+        Instant expiresAt = now.plus(expiryDays, ChronoUnit.DAYS);
         UUID userId = UUID.randomUUID();
 
         utilisateurs.save(UtilisateurJpaEntity.create(
