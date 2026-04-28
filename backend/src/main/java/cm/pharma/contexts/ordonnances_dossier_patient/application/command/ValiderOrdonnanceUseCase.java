@@ -4,6 +4,7 @@ import cm.pharma.contexts.audit_tracabilite.application.AuditWriter;
 import cm.pharma.contexts.audit_tracabilite.application.AuditWriter.AuditEvent;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceJpaEntity;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceJpaRepository;
+import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnancePieceJpaRepository;
 import cm.pharma.shared.domain.BusinessRuleViolationException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ValiderOrdonnanceUseCase {
 
     private final OrdonnanceJpaRepository ordonnances;
+    private final OrdonnancePieceJpaRepository pieces;
     private final AuditWriter auditWriter;
 
-    public ValiderOrdonnanceUseCase(OrdonnanceJpaRepository ordonnances, AuditWriter auditWriter) {
+    public ValiderOrdonnanceUseCase(OrdonnanceJpaRepository ordonnances, OrdonnancePieceJpaRepository pieces, AuditWriter auditWriter) {
         this.ordonnances = Objects.requireNonNull(ordonnances);
+        this.pieces = Objects.requireNonNull(pieces);
         this.auditWriter = Objects.requireNonNull(auditWriter);
     }
 
@@ -34,6 +37,9 @@ public class ValiderOrdonnanceUseCase {
         Instant now = Instant.now();
         if (o.getDateExpiration().isBefore(LocalDate.now())) {
             throw new BusinessRuleViolationException("Ordonnance expirée");
+        }
+        if (pieces.findByOrganisationIdAndOrdonnanceId(organisationId, ordonnanceId).isEmpty()) {
+            throw new BusinessRuleViolationException("Pièce ordonnance requise (scan) avant validation");
         }
         o.valider(actorId, now);
         auditWriter.write(AuditEvent.simple(

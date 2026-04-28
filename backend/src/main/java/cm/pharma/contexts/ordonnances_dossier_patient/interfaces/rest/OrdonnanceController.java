@@ -140,6 +140,18 @@ public class OrdonnanceController {
         ));
     }
 
+    @PostMapping("/{ordonnanceId}/dispensations/preview")
+    @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
+    public DispenserOrdonnanceUseCase.DispensationPreview preview(@PathVariable UUID ordonnanceId, @Valid @RequestBody DispensationPreviewRequest req, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        return dispenser.preview(new DispenserOrdonnanceUseCase.PreviewCommand(
+                orgId,
+                ordonnanceId,
+                req.ordonnanceLigneId(),
+                req.quantiteSouhaitee()
+        ));
+    }
+
     @PostMapping("/{ordonnanceId}/pieces")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('CAISSIER','PHARMACIEN','ADMIN')")
@@ -177,6 +189,16 @@ public class OrdonnanceController {
         UUID orgId = OrganisationContext.organisationId(auth);
         return ordonnances.findEnAttenteValidation(orgId).stream()
                 .limit(100)
+                .map(o -> new OrdonnanceResumeResponse(o.getId(), o.getStatut(), o.getDateExpiration()))
+                .toList();
+    }
+
+    @GetMapping("/partiellement-dispensees")
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public List<OrdonnanceResumeResponse> partiellementDispensees(JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        return ordonnances.findPartiellementDispensees(orgId).stream()
+                .limit(200)
                 .map(o -> new OrdonnanceResumeResponse(o.getId(), o.getStatut(), o.getDateExpiration()))
                 .toList();
     }
@@ -242,6 +264,9 @@ public class OrdonnanceController {
     }
 
     public record DispensationRequest(@NotNull UUID ordonnanceLigneId, @Min(1) int quantite, String motifOverride) {
+    }
+
+    public record DispensationPreviewRequest(@NotNull UUID ordonnanceLigneId, @Min(1) int quantiteSouhaitee) {
     }
 
     public record RenouvellementRequest(@NotNull LocalDate datePrescription, LocalDate dateExpiration) {

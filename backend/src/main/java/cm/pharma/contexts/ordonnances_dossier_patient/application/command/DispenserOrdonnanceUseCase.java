@@ -11,6 +11,7 @@ import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceLigneJpaEntity;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceLigneJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientMedicalJpaRepository;
+import cm.pharma.contexts.ordonnances_dossier_patient.application.service.AllergieDetector;
 import cm.pharma.contexts.referentiel.infrastructure.persistence.jpa.EmplacementJpaRepository;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaEntity;
 import cm.pharma.contexts.stocks_tracabilite.infrastructure.persistence.jpa.MouvementStockJpaRepository;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class DispenserOrdonnanceUseCase {
 
     private static final String EMPLACEMENT_COMPTOIR_MED = "COMPTOIR_MED";
-    private static final String ALLERGIE_PENICILL = "PENICILL";
 
     private final OrdonnanceJpaRepository ordonnances;
     private final OrdonnanceLigneJpaRepository lignes;
@@ -131,22 +131,9 @@ public class DispenserOrdonnanceUseCase {
         ));
     }
 
-    private static boolean detecterRisqueAllergie(String allergies, ProduitJpaEntity produit) {
-        if (allergies == null || allergies.isBlank()) {
-            return false;
-        }
-        String a = allergies.toUpperCase();
-        String nom = (produit.getNomCommercial() == null ? "" : produit.getNomCommercial()).toUpperCase();
-        String dci = (produit.getDci() == null ? "" : produit.getDci()).toUpperCase();
-
-        boolean allergiePenicillines = a.contains(ALLERGIE_PENICILL);
-        boolean produitPenicilline = nom.contains("AMOXICILL") || dci.contains("AMOXICILL") || nom.contains(ALLERGIE_PENICILL) || dci.contains(ALLERGIE_PENICILL);
-        return allergiePenicillines && produitPenicilline;
-    }
-
     private boolean verifierAllergieEtBloquerSiNecessaire(DispenserCommand cmd, OrdonnanceJpaEntity o, ProduitJpaEntity produit) {
         String allergies = patientMedical.findByPatientId(o.getPatientId()).map(pm -> pm.getAllergies()).orElse(null);
-        boolean risque = detecterRisqueAllergie(allergies, produit);
+        boolean risque = AllergieDetector.isBlocant(allergies, produit);
         if (!risque) {
             return false;
         }
@@ -159,6 +146,56 @@ public class DispenserOrdonnanceUseCase {
             throw new BusinessRuleViolationException("Override allergie réservé au pharmacien/admin");
         }
         return true;
+    }
+
+    @Transactional(readOnly = true)
+    public DispensationPreview preview(PreviewCommand cmd) {
+        Objects.requireNonNull(cmd);
+        if (cmd.quantiteSouhaitee() <= 0) {
+            throw new BusinessRuleViolationException("Quantité invalide");
+        }
+        OrdonnanceJpaEntity o = ordonnances.findByOrganisationIdAndId(cmd.organisationId(), cmd.ordonnanceId())
+                .orElseThrow(() -> new BusinessRuleViolationException("Ordonnance introuvable"));
+        OrdonnanceLigneJpaEntity ligne = lignes.findByOrganisationIdAndId(cmd.organisationId(), cmd.ordonnanceLigneId())
+                .orElseThrow(() -> new BusinessRuleViolationException("Ligne ordonnance introuvable"));
+        if (!ligne.getOrdonnanceId().equals(cmd.ordonnanceId())) {
+            throw new BusinessRuleViolationException("Ligne hors ordonnance");
+        }
+        int restant = ligne.getQuantitePrescrite() - ligne.getQuantiteDispensee();
+        int cible = Math.min(cmd.quantiteSouhaitee(), restant);
+        if (cible <= 0) {
+            return new DispensationPreview(0, 0, List.of());
+        }
+
+        UUID comptoirId = emplacements.findByOrganisationIdAndCode(cmd.organisationId(), EMPLACEMENT_COMPTOIR_MED)
+                .orElseThrow(() -> new BusinessRuleViolationException("Emplacement comptoir médicaments introuvable"))
+                .getId();
+
+        List<StockEmplacementJpaRepository.StockLotDisponibleRow> lotsDisponibles = stock.findLotsActifsDisponibles(cmd.organisationId(), comptoirId, ligne.getProduitId()).stream()
+                .sorted(java.util.Comparator.comparing(StockEmplacementJpaRepository.StockLotDisponibleRow::getDatePeremption)
+                        .thenComparing(StockEmplacementJpaRepository.StockLotDisponibleRow::getNumeroLot))
+                .toList();
+
+        int available = lotsDisponibles.stream().mapToInt(StockEmplacementJpaRepository.StockLotDisponibleRow::getQuantite).sum();
+        int propose = Math.min(cible, available);
+
+        List<AllocationLot> allocations = buildAllocations(lotsDisponibles, propose);
+        return new DispensationPreview(cible, propose, allocations);
+    }
+
+    private static List<AllocationLot> buildAllocations(List<StockEmplacementJpaRepository.StockLotDisponibleRow> lotsDisponibles, int quantite) {
+        if (quantite <= 0) {
+            return List.of();
+        }
+        int remaining = quantite;
+        java.util.ArrayList<AllocationLot> out = new java.util.ArrayList<>();
+        for (var row : lotsDisponibles) {
+            if (remaining <= 0) break;
+            int take = Math.min(row.getQuantite(), remaining);
+            out.add(new AllocationLot(row.getLotId(), take, row.getDatePeremption(), row.getNumeroLot()));
+            remaining -= take;
+        }
+        return out;
     }
 
     private void consommerLotsFefoEtTracer(
@@ -241,6 +278,15 @@ public class DispenserOrdonnanceUseCase {
             boolean peutOverriderAllergie,
             String motifOverride
     ) {
+    }
+
+    public record PreviewCommand(UUID organisationId, UUID ordonnanceId, UUID ordonnanceLigneId, int quantiteSouhaitee) {
+    }
+
+    public record DispensationPreview(int quantiteDemandee, int quantiteProposee, List<AllocationLot> allocations) {
+    }
+
+    public record AllocationLot(UUID lotId, int quantite, java.time.LocalDate datePeremption, String numeroLot) {
     }
 }
 

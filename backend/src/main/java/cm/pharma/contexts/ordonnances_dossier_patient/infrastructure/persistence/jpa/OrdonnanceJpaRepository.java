@@ -16,6 +16,15 @@ public interface OrdonnanceJpaRepository extends JpaRepository<OrdonnanceJpaEnti
             select o
             from OrdonnanceJpaEntity o
             where o.organisationId = :organisationId
+              and o.statut = 'PARTIELLEMENT_DISPENSEE'
+            order by o.createdAt desc
+            """)
+    List<OrdonnanceJpaEntity> findPartiellementDispensees(UUID organisationId);
+
+    @Query("""
+            select o
+            from OrdonnanceJpaEntity o
+            where o.organisationId = :organisationId
               and o.statut = 'EN_ATTENTE_VALIDATION'
             order by o.createdAt desc
             """)

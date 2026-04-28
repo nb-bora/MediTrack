@@ -54,6 +54,9 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
 - `GET /api/patients/{patientId}/historique-dispensations`
   - Rôles: `PHARMACIEN`, `ADMIN`
   - Historique des dispensations (limit 500) trié par date décroissante.
+- `GET /api/patients/{patientId}/historique`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Historique complet : ordonnances (limit 200) + dispensations.
 
 #### Ordonnances
 - `POST /api/ordonnances`
@@ -65,6 +68,9 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
 - `POST /api/ordonnances/{ordonnanceId}/dispensations`
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
   - Blocage allergie + override `PHARMACIEN/ADMIN`.
+- `POST /api/ordonnances/{ordonnanceId}/dispensations/preview`
+  - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
+  - Calcule la quantité disponible au comptoir (FEFO) et propose une dispensation partielle si nécessaire (sans déstockage).
 - `POST /api/ordonnances/{ordonnanceId}/pieces` (multipart)
   - Rôles: `CAISSIER`, `PHARMACIEN`, `ADMIN`
   - Upload d’une pièce scannée (stockage disque + `storage_key`).
@@ -80,6 +86,9 @@ Gérer le dossier patient (identité + médical protégé), l’ordonnance (cré
 - `GET /api/ordonnances/en-attente-validation`
   - Rôles: `PHARMACIEN`, `ADMIN`
   - Liste (limit 100) des ordonnances `EN_ATTENTE_VALIDATION`.
+- `GET /api/ordonnances/partiellement-dispensees`
+  - Rôles: `PHARMACIEN`, `ADMIN`
+  - Liste (limit 200) des ordonnances `PARTIELLEMENT_DISPENSEE`.
 - `POST /api/ordonnances/{ordonnanceId}/renouvellement`
   - Rôles: `PHARMACIEN`, `ADMIN`
   - Crée une nouvelle ordonnance liée (`ordonnance_parent_id`) en recopiant les lignes (posologie/durée incluses).

@@ -5,6 +5,7 @@ import cm.pharma.contexts.ordonnances_dossier_patient.application.command.Mettre
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.PatientMedicalJpaRepository;
 import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.DispensationJpaRepository;
+import cm.pharma.contexts.ordonnances_dossier_patient.infrastructure.persistence.jpa.OrdonnanceJpaRepository;
 import cm.pharma.contexts.catalogue_produits.infrastructure.persistence.jpa.ProduitJpaRepository;
 import cm.pharma.shared.interfaces.rest.OrganisationContext;
 import cm.pharma.shared.interfaces.rest.PosteContext;
@@ -36,6 +37,7 @@ public class PatientController {
     private final PatientMedicalJpaRepository medical;
     private final DispensationJpaRepository dispensations;
     private final ProduitJpaRepository produits;
+    private final OrdonnanceJpaRepository ordonnances;
 
     public PatientController(
             CreerPatientUseCase creerPatient,
@@ -43,7 +45,8 @@ public class PatientController {
             PatientJpaRepository patients,
             PatientMedicalJpaRepository medical,
             DispensationJpaRepository dispensations,
-            ProduitJpaRepository produits
+            ProduitJpaRepository produits,
+            OrdonnanceJpaRepository ordonnances
     ) {
         this.creerPatient = creerPatient;
         this.majMedical = majMedical;
@@ -51,6 +54,7 @@ public class PatientController {
         this.medical = medical;
         this.dispensations = dispensations;
         this.produits = produits;
+        this.ordonnances = ordonnances;
     }
 
     @PostMapping
@@ -166,6 +170,19 @@ public class PatientController {
                 .toList();
     }
 
+    @GetMapping("/{patientId}/historique")
+    @PreAuthorize("hasAnyRole('PHARMACIEN','ADMIN')")
+    public PatientHistoriqueResponse historique(@PathVariable UUID patientId, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        var p = patients.findByOrganisationIdAndId(orgId, patientId).orElseThrow();
+        var ords = ordonnances.findByOrganisationIdAndPatientIdOrderByIdDesc(orgId, patientId).stream()
+                .limit(200)
+                .map(o -> new PatientOrdonnanceItem(o.getId(), o.getStatut(), o.getDateExpiration(), o.getCreatedAt()))
+                .toList();
+        var disp = historiqueDispensations(patientId, auth);
+        return new PatientHistoriqueResponse(p.getId(), p.getNom(), p.getPrenom(), ords, disp);
+    }
+
     public record CreerPatientRequest(
             @NotBlank String nom,
             @NotBlank String prenom,
@@ -227,6 +244,12 @@ public class PatientController {
             UUID emplacementId,
             String motifOverride
     ) {
+    }
+
+    public record PatientOrdonnanceItem(UUID ordonnanceId, String statut, java.time.LocalDate dateExpiration, java.time.Instant createdAt) {
+    }
+
+    public record PatientHistoriqueResponse(UUID patientId, String nom, String prenom, List<PatientOrdonnanceItem> ordonnances, List<HistoriqueDispensationItem> dispensations) {
     }
 }
 
