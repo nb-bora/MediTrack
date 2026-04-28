@@ -104,21 +104,19 @@ public class TransfererStockUseCase {
             dst.setQuantite(dst.getQuantite() + pick.quantite(), now);
             stock.save(dst);
 
-            mouvements.save(MouvementStockJpaEntity.create(
-                    new MouvementStockJpaEntity.MouvementInit(
-                            UUID.randomUUID(),
-                            cmd.organisationId(),
-                            "TRANSFERT",
-                            pick.lotId(),
-                            cmd.produitId(),
-                            pick.quantite(),
-                            cmd.emplacementSourceId(),
-                            cmd.emplacementDestinationId(),
-                            cmd.referenceDocument(),
-                            cmd.motif(),
-                            cmd.creePar(),
-                            now
-                    )
+            mouvements.save(MouvementStockJpaEntity.create(new MouvementStockJpaEntity.MouvementInit(
+                    UUID.randomUUID(),
+                    cmd.organisationId(),
+                    "TRANSFERT",
+                    pick.lotId(),
+                    cmd.produitId(),
+                    pick.quantite(),
+                    cmd.emplacementSourceId(),
+                    cmd.emplacementDestinationId(),
+                    cmd.referenceDocument(),
+                    cmd.motif(),
+                    cmd.creePar(),
+                    now
             )));
         }
 

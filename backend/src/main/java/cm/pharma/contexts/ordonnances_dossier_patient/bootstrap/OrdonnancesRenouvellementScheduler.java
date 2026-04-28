@@ -28,15 +28,15 @@ public class OrdonnancesRenouvellementScheduler {
     public void run() {
         LocalDate j7 = LocalDate.now().plusDays(7);
         organisations.findAll().forEach(org -> ordonnances.findAlerteRenouvellementJ7(org.getId(), j7).forEach(o ->
-            alertes.openDedup(
-                    org.getId(),
-                    "ORDONNANCE_EXPIRE_BIENTOT",
-                    "IMPORTANT",
-                    "Ordonnance",
-                    o.getId().toString(),
-                    "Ordonnance expire dans 7 jours — prévoir renouvellement",
-                    SYSTEM_USER_ID
-            );
+                alertes.openDedup(
+                        org.getId(),
+                        "ORDONNANCE_EXPIRE_BIENTOT",
+                        "IMPORTANT",
+                        "Ordonnance",
+                        o.getId().toString(),
+                        "Ordonnance expire dans 7 jours — prévoir renouvellement",
+                        SYSTEM_USER_ID
+                )
         ));
     }
 }

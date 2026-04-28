@@ -37,7 +37,7 @@ public class SoumettreDossierTiersPayantUseCase {
     public void execute(UUID organisationId, UUID dossierId, UUID actorId) {
         DossierTiersPayantJpaEntity d = dossiers.findByOrganisationIdAndId(organisationId, dossierId)
                 .orElseThrow(() -> new BusinessRuleViolationException("Dossier introuvable"));
-        if (!"BROUILLON".equals(d.getStatut()) && !"RESOUMIS".equals(d.getStatut())) {
+        if (!"BROUILLON".equals(d.getStatut())) {
             throw new BusinessRuleViolationException("Dossier non soumettable");
         }
         OrganismeCouvertureJpaEntity c = couvertures.findByOrganisationIdAndOrganismeId(organisationId, d.getOrganismeId())
@@ -48,7 +48,7 @@ public class SoumettreDossierTiersPayantUseCase {
         d.soumettre(actorId, Instant.now());
         dossiers.save(d);
 
-        alertes.resolve(organisationId, "DOSSIER_TP_PIECES_A_VERIFIER", "DossierTiersPayant", dossierId.toString(), actorId);
+        alertes.resolveDedup(organisationId, "DOSSIER_TP_PIECES_A_VERIFIER", "DossierTiersPayant", dossierId.toString(), actorId, "Soumis");
         alertes.openDedup(organisationId, "DOSSIER_TP_SOUMIS", "INFO", "DossierTiersPayant", dossierId.toString(), "Dossier soumis", actorId);
     }
 

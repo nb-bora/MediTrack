@@ -75,7 +75,7 @@ public class ScannerEanUseCase {
         if (p.isEmpty()) {
             throw new BusinessRuleViolationException("Aucun prix de vente actif pour ce produit");
         }
-        BigDecimal prixUnitaire = p.getFirst().getMontant();
+        BigDecimal prixUnitaire = p.get(0).getMontant();
 
         VenteLigneJpaEntity ligne = lignes.findByVenteIdAndProduitId(venteId, produitId).orElse(null);
         if (ligne == null) {

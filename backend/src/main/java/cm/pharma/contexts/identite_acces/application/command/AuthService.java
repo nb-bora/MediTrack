@@ -307,7 +307,7 @@ public class AuthService {
     }
 
     private static String pickRole(UtilisateurAuthView user) {
-        return user.roles() == null || user.roles().isEmpty() ? null : user.roles().getFirst();
+        return user.roles() == null || user.roles().isEmpty() ? null : user.roles().get(0);
     }
 
 }

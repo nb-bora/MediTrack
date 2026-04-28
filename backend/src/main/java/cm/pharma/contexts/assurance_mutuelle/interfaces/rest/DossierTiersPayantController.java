@@ -1,6 +1,7 @@
 package cm.pharma.contexts.assurance_mutuelle.interfaces.rest;
 
 import cm.pharma.contexts.assurance_mutuelle.application.command.AjouterPieceDossierTiersPayantUseCase;
+import cm.pharma.contexts.assurance_mutuelle.application.command.CreerDossierTiersPayantDepuisVenteUseCase;
 import cm.pharma.contexts.assurance_mutuelle.application.command.MarquerDossierTiersPayantPayeUseCase;
 import cm.pharma.contexts.assurance_mutuelle.application.command.RejeterDossierTiersPayantUseCase;
 import cm.pharma.contexts.assurance_mutuelle.application.command.ResoumettreDossierTiersPayantUseCase;
@@ -37,6 +38,7 @@ public class DossierTiersPayantController {
 
     private final DossierTiersPayantJpaRepository dossiers;
     private final DossierTiersPayantPieceJpaRepository pieces;
+    private final CreerDossierTiersPayantDepuisVenteUseCase creerDepuisVente;
     private final SoumettreDossierTiersPayantUseCase soumettre;
     private final RejeterDossierTiersPayantUseCase rejeter;
     private final ResoumettreDossierTiersPayantUseCase resoumettre;
@@ -47,6 +49,7 @@ public class DossierTiersPayantController {
     public DossierTiersPayantController(
             DossierTiersPayantJpaRepository dossiers,
             DossierTiersPayantPieceJpaRepository pieces,
+            CreerDossierTiersPayantDepuisVenteUseCase creerDepuisVente,
             SoumettreDossierTiersPayantUseCase soumettre,
             RejeterDossierTiersPayantUseCase rejeter,
             ResoumettreDossierTiersPayantUseCase resoumettre,
@@ -56,12 +59,22 @@ public class DossierTiersPayantController {
     ) {
         this.dossiers = dossiers;
         this.pieces = pieces;
+        this.creerDepuisVente = creerDepuisVente;
         this.soumettre = soumettre;
         this.rejeter = rejeter;
         this.resoumettre = resoumettre;
         this.payer = payer;
         this.ajouterPiece = ajouterPiece;
         this.storage = storage;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','COMPTABLE')")
+    public CreerDossierResponse creer(@Valid @RequestBody CreerDossierRequest req, JwtAuthenticationToken auth) {
+        UUID orgId = OrganisationContext.organisationId(auth);
+        UUID actorId = UUID.fromString(auth.getToken().getSubject());
+        UUID dossierId = creerDepuisVente.execute(orgId, req.venteId(), actorId);
+        return new CreerDossierResponse(dossierId);
     }
 
     @GetMapping
@@ -146,10 +159,10 @@ public class DossierTiersPayantController {
 
     @PostMapping("/{dossierId}/paiement")
     @PreAuthorize("hasAnyRole('ADMIN','COMPTABLE')")
-    public void payer(@PathVariable UUID dossierId, JwtAuthenticationToken auth) {
+    public void payer(@PathVariable UUID dossierId, @RequestBody(required = false) PaiementRequest req, JwtAuthenticationToken auth) {
         UUID orgId = OrganisationContext.organisationId(auth);
         UUID actorId = UUID.fromString(auth.getToken().getSubject());
-        payer.execute(orgId, dossierId, actorId);
+        payer.execute(orgId, dossierId, req == null ? null : req.reference(), actorId);
     }
 
     @GetMapping("/stats/rejets")
@@ -173,10 +186,19 @@ public class DossierTiersPayantController {
     public record PieceUploadResponse(UUID pieceId) {
     }
 
+    public record CreerDossierRequest(@NotNull UUID venteId) {
+    }
+
+    public record CreerDossierResponse(UUID dossierId) {
+    }
+
     public record RejetRequest(@NotBlank String motif) {
     }
 
     public record MotifRejetStat(String motif, long nb) {
+    }
+
+    public record PaiementRequest(String reference) {
     }
 }
 

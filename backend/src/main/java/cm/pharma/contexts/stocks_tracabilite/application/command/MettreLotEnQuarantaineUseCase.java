@@ -72,21 +72,19 @@ public class MettreLotEnQuarantaineUseCase {
                 dst.setQuantite(dst.getQuantite() + qty, now);
                 stock.save(dst);
 
-                mouvements.save(MouvementStockJpaEntity.create(
-                        new MouvementStockJpaEntity.MouvementInit(
-                                UUID.randomUUID(),
-                                organisationId,
-                                "MISE_QUARANTAINE",
-                                lotId,
-                                lot.getProduitId(),
-                                qty,
-                                row.getEmplacementId(),
-                                quarantaine.getId(),
-                                null,
-                                motif,
-                                actorId,
-                                now
-                        )
+                mouvements.save(MouvementStockJpaEntity.create(new MouvementStockJpaEntity.MouvementInit(
+                        UUID.randomUUID(),
+                        organisationId,
+                        "MISE_QUARANTAINE",
+                        lotId,
+                        lot.getProduitId(),
+                        qty,
+                        row.getEmplacementId(),
+                        quarantaine.getId(),
+                        null,
+                        motif,
+                        actorId,
+                        now
                 )));
             }
         }

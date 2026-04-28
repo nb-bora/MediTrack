@@ -22,17 +22,17 @@ public class MarquerDossierTiersPayantPayeUseCase {
     }
 
     @Transactional
-    public void execute(UUID organisationId, UUID dossierId, UUID actorId) {
+    public void execute(UUID organisationId, UUID dossierId, String reference, UUID actorId) {
         DossierTiersPayantJpaEntity d = dossiers.findByOrganisationIdAndId(organisationId, dossierId)
                 .orElseThrow(() -> new BusinessRuleViolationException("Dossier introuvable"));
         if (!"SOUMIS".equals(d.getStatut()) && !"RESOUMIS".equals(d.getStatut())) {
             throw new BusinessRuleViolationException("Dossier non payable");
         }
-        d.marquerPaye(actorId, Instant.now());
+        d.marquerPaye(reference == null || reference.isBlank() ? null : reference.trim(), Instant.now());
         dossiers.save(d);
 
         alertes.openDedup(organisationId, "DOSSIER_TP_PAYE", "INFO", "DossierTiersPayant", dossierId.toString(), "Dossier marqué payé", actorId);
-        alertes.resolve(organisationId, "DOSSIER_TP_REJETE", "DossierTiersPayant", dossierId.toString(), actorId);
+        alertes.resolveDedup(organisationId, "DOSSIER_TP_REJETE", "DossierTiersPayant", dossierId.toString(), actorId, "Payé");
     }
 }
 

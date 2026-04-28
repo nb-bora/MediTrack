@@ -52,7 +52,7 @@ public class CreerPrixUseCase {
         // Interdire chevauchement : si un prix est applicable à dateDebut, alors on doit être en train de clôturer l’actif.
         var applicable = prix.findApplicableAt(cmd.produitId(), cmd.typePrix(), cmd.dateDebut());
         if (!applicable.isEmpty()) {
-            PrixProduitJpaEntity current = applicable.getFirst();
+            PrixProduitJpaEntity current = applicable.get(0);
             if (current.getDateFin() != null && !current.getDateFin().isBefore(cmd.dateDebut())) {
                 throw new BusinessRuleViolationException("Chevauchement de prix interdit");
             }
@@ -65,7 +65,7 @@ public class CreerPrixUseCase {
         } else {
             // S’il y a un actif à dateFin=null mais dont dateDebut > dateDebut, c’est un prix futur: on interdit (version simple)
             var actives = prix.findActive(cmd.produitId(), cmd.typePrix());
-            if (!actives.isEmpty() && cmd.dateDebut().isBefore(actives.getFirst().getDateDebut())) {
+            if (!actives.isEmpty() && cmd.dateDebut().isBefore(actives.get(0).getDateDebut())) {
                 throw new BusinessRuleViolationException("Impossible d'insérer un prix avant un prix futur déjà défini");
             }
         }

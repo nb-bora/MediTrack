@@ -39,5 +39,16 @@ public class AlerteService {
         }
         a.resolve(actorId, resolutionMessage, Instant.now());
     }
+
+    /**
+     * Résout une alerte ouverte identifiée par sa clé de déduplication.
+     *
+     * <p>Utile lorsque l’on ne persiste pas l’ID de l’alerte côté workflow.</p>
+     */
+    @Transactional
+    public void resolveDedup(UUID organisationId, String type, String entite, String entiteId, UUID actorId, String resolutionMessage) {
+        alertes.findByOrganisationIdAndTypeAlerteAndEntiteAndEntiteIdAndResolvedAtIsNull(organisationId, type, entite, entiteId)
+                .ifPresent(a -> a.resolve(actorId, resolutionMessage, Instant.now()));
+    }
 }
 

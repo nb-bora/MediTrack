@@ -104,21 +104,19 @@ public class ValiderInventaireUseCase {
                     .orElseThrow(() -> new BusinessRuleViolationException("Stock introuvable (concurrence)"));
             se.setQuantite(se.getQuantite() - take, now);
             stock.save(se);
-            mouvements.save(MouvementStockJpaEntity.create(
-                    new MouvementStockJpaEntity.MouvementInit(
-                            UUID.randomUUID(),
-                            organisationId,
-                            "AJUSTEMENT",
-                            row.getLotId(),
-                            ligne.getProduitId(),
-                            take,
-                            ligne.getEmplacementId(),
-                            null,
-                            "INV-" + inventaireId,
-                            ligne.getMotifEcart(),
-                            validatedBy,
-                            now
-                    )
+            mouvements.save(MouvementStockJpaEntity.create(new MouvementStockJpaEntity.MouvementInit(
+                    UUID.randomUUID(),
+                    organisationId,
+                    "AJUSTEMENT",
+                    row.getLotId(),
+                    ligne.getProduitId(),
+                    take,
+                    ligne.getEmplacementId(),
+                    null,
+                    "INV-" + inventaireId,
+                    ligne.getMotifEcart(),
+                    validatedBy,
+                    now
             )));
             remaining -= take;
         }
@@ -152,21 +150,19 @@ public class ValiderInventaireUseCase {
         se.setQuantite(se.getQuantite() + aAjouter, now);
         stock.save(se);
 
-        mouvements.save(MouvementStockJpaEntity.create(
-                new MouvementStockJpaEntity.MouvementInit(
-                        UUID.randomUUID(),
-                        organisationId,
-                        "AJUSTEMENT",
-                        lotId,
-                        ligne.getProduitId(),
-                        aAjouter,
-                        null,
-                        ligne.getEmplacementId(),
-                        "INV-" + inventaireId,
-                        ligne.getMotifEcart(),
-                        validatedBy,
-                        now
-                )
+        mouvements.save(MouvementStockJpaEntity.create(new MouvementStockJpaEntity.MouvementInit(
+                UUID.randomUUID(),
+                organisationId,
+                "AJUSTEMENT",
+                lotId,
+                ligne.getProduitId(),
+                aAjouter,
+                null,
+                ligne.getEmplacementId(),
+                "INV-" + inventaireId,
+                ligne.getMotifEcart(),
+                validatedBy,
+                now
         )));
     }
 }

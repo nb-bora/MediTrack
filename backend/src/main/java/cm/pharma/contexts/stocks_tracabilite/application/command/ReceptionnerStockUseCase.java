@@ -120,19 +120,19 @@ public class ReceptionnerStockUseCase {
         auditWriter.write(AuditEvent.simple(
                 cmd.organisationId(), now, null, null, null,
                 null, null, "STOCK_RECEPTIONNE", ENTITY_LOT_STOCK, lotId.toString(), cmd.motif(),
-                Map.of(
-                        "produit_id", cmd.produitId(),
-                        "numero_lot", cmd.numeroLot(),
-                        "date_peremption", cmd.datePeremption(),
-                        "quantite", cmd.quantite(),
-                        "emplacement_destination_id", cmd.emplacementDestinationId(),
-                        "reference_document", cmd.referenceDocument(),
-                        "prix_achat_unitaire", cmd.prixAchatUnitaire(),
-                        "quantite_commandee", cmd.quantiteCommandee(),
-                        "prix_attendu_unitaire", cmd.prixAttenduUnitaire(),
-                        "prix_facture_unitaire", cmd.prixFactureUnitaire(),
-                        "temperature_transport_c", cmd.temperatureTransportC(),
-                        "confirmer_peremption_proche", cmd.confirmerPeremptionProche()
+                Map.ofEntries(
+                        Map.entry("produit_id", cmd.produitId()),
+                        Map.entry("numero_lot", cmd.numeroLot()),
+                        Map.entry("date_peremption", cmd.datePeremption()),
+                        Map.entry("quantite", cmd.quantite()),
+                        Map.entry("emplacement_destination_id", cmd.emplacementDestinationId()),
+                        Map.entry("reference_document", cmd.referenceDocument()),
+                        Map.entry("prix_achat_unitaire", cmd.prixAchatUnitaire()),
+                        Map.entry("quantite_commandee", cmd.quantiteCommandee()),
+                        Map.entry("prix_attendu_unitaire", cmd.prixAttenduUnitaire()),
+                        Map.entry("prix_facture_unitaire", cmd.prixFactureUnitaire()),
+                        Map.entry("temperature_transport_c", cmd.temperatureTransportC()),
+                        Map.entry("confirmer_peremption_proche", cmd.confirmerPeremptionProche())
                 )
         ));
 

@@ -29,6 +29,7 @@ Paramétrer des organismes (CNPS, mutuelles), définir leurs règles de couvertu
 #### Dossiers tiers payant
 
 - `GET /api/assurances/dossiers?statut=SOUMIS` (ADMIN/COMPTABLE/PHARMACIEN)
+- `POST /api/assurances/dossiers` (ADMIN/COMPTABLE) — body: `{ "venteId": "..." }`
 - `POST /api/assurances/dossiers/{dossierId}/soumission` (ADMIN/COMPTABLE)
 - `POST /api/assurances/dossiers/{dossierId}/rejet` (ADMIN/COMPTABLE) — body: `{ "motif": "..." }`
 - `POST /api/assurances/dossiers/{dossierId}/resoumission` (ADMIN/COMPTABLE)

@@ -31,7 +31,7 @@ public class RejeterDossierTiersPayantUseCase {
         if (!"SOUMIS".equals(d.getStatut()) && !"RESOUMIS".equals(d.getStatut())) {
             throw new BusinessRuleViolationException("Dossier non rejetable");
         }
-        d.rejeter(motif, actorId, Instant.now());
+        d.rejeter(actorId, motif, Instant.now());
         dossiers.save(d);
 
         alertes.openDedup(
